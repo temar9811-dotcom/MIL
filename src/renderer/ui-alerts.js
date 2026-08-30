@@ -1,17 +1,26 @@
-// src/renderer/ui-alerts.js
+// MIL ui-alerts v3 - single-line alert cards
 const alertsList = document.getElementById('alerts');
 
 window.addAlert = (data) => {
   if (!alertsList || !data) return;
   const el = document.createElement('div');
   el.className = `alert alert-${data.type === 'red' ? 'red' : 'soft'}`;
-  el.style.whiteSpace = 'pre-line';
-  const shipPart = data.ship ? ` in a ${data.ship}` : '';
-  el.textContent = [
-    data.character || 'unknown character',
-    `${data.jumps == null ? '?' : data.jumps} jumps`,
-    `${data.pilot || 'unknown pilot'}${shipPart}`,
-  ].join('\n');
+
+  const parts = [
+    data.character || '?',
+    `${data.jumps == null ? '?' : data.jumps}`,
+    data.system || '?',
+    data.pilot || '?',
+  ];
+  if (data.ship) parts.push(data.ship);
+  const line = parts.join(' > ');
+
+  el.textContent = line;
+  el.title = line;
+  el.style.whiteSpace = 'nowrap';
+  el.style.overflow = 'hidden';
+  el.style.textOverflow = 'ellipsis';
+
   alertsList.insertBefore(el, alertsList.firstChild);
   while (alertsList.children.length > 20) {
     alertsList.removeChild(alertsList.lastChild);

@@ -1,4 +1,4 @@
-// src/renderer/renderer.js
+// MIL renderer v2 - sound handled in main process
 const statusEl = document.getElementById('engine-status');
 
 const STATUS_STYLES = {

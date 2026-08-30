@@ -1,4 +1,4 @@
-// MIL watcher v7 - per-file encoding sniff at offset 0
+// MIL watcher v8 - header regexes tolerate EVE's indented header block
 const fs = require('fs');
 const path = require('path');
 const chokidar = require('chokidar');
@@ -109,12 +109,13 @@ class ChatLogWatcher {
       fs.closeSync(fd);
       const lines = this.decodeChunk(buf, this.encodingFor(filePath)).split(/\r?\n/);
       let character = null, channel = null, sessionStart = null;
-      for (const line of lines) {
-        const cm = line.match(/^Channel Name:\s*(.+)/i);
+      for (const raw of lines) {
+        const line = raw.trim();
+        const cm = line.match(/^Channel Name:\s*(.+)$/i);
         if (cm) channel = cm[1].trim();
-        const lm = line.match(/^Listener:\s*(.+)/i);
+        const lm = line.match(/^Listener:\s*(.+)$/i);
         if (lm) character = lm[1].trim();
-        const sm = line.match(/^Session started:\s*(.+)/i);
+        const sm = line.match(/^Session started:\s*(.+)$/i);
         if (sm) sessionStart = sm[1].trim();
       }
       return { character, channel, sessionStart };
@@ -127,6 +128,10 @@ class ChatLogWatcher {
     if (!this.headers.has(filePath)) {
       const h = this.readHeader(filePath);
       this.headers.set(filePath, h);
+      this.log.watch(
+        `Header ${path.basename(filePath)}: enc=${this.encodingFor(filePath)} ` +
+        `listener=${h.character || 'null'} channel=${h.channel || 'null'}`,
+      );
       if (this.registry && h.character) {
         this.registry.updateFromHeader(filePath, h.character, h.channel, h.sessionStart, active);
       }

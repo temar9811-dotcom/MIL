@@ -1,5 +1,7 @@
+// MIL main v2 - window state persistence
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { DebugLog } = require('./debug');
 const { loadConfig, saveConfig } = require('./config');
 const { registerIpc } = require('./ipc');
@@ -10,11 +12,44 @@ const log = new DebugLog(DEBUG);
 let mainWindow = null;
 let config = null;
 let engine = null;
+let saveTimer = null;
+
+function windowStatePath() {
+  return path.join(app.getPath('userData'), 'window-state.json');
+}
+
+function loadWindowState() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(windowStatePath(), 'utf8'));
+    if (raw && typeof raw.width === 'number' && typeof raw.height === 'number') return raw;
+  } catch (_) { /* first run */ }
+  return null;
+}
+
+function saveWindowState() {
+  if (!mainWindow) return;
+  try {
+    const b = mainWindow.getBounds();
+    const state = {
+      x: b.x, y: b.y, width: b.width, height: b.height,
+      isMaximized: mainWindow.isMaximized(),
+    };
+    fs.writeFileSync(windowStatePath(), JSON.stringify(state));
+  } catch (_) { /* never crash on saving */ }
+}
+
+function scheduleSaveWindowState() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { saveTimer = null; saveWindowState(); }, 500);
+}
 
 function createWindow() {
+  const state = loadWindowState();
   mainWindow = new BrowserWindow({
-    width: 1000,
-    height: 750,
+    width: state ? state.width : 1000,
+    height: state ? state.height : 750,
+    x: state ? state.x : undefined,
+    y: state ? state.y : undefined,
     title: 'MRCHI Intel Lite',
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'index.js'),
@@ -22,8 +57,14 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
-  mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  if (state && state.isMaximized) mainWindow.maximize();
+
+  mainWindow.on('move', scheduleSaveWindowState);
+  mainWindow.on('resize', scheduleSaveWindowState);
+  mainWindow.on('close', saveWindowState);
   mainWindow.on('closed', () => { mainWindow = null; });
+
+  mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   log.info('Window created');
 }
 
@@ -56,19 +97,12 @@ app.whenReady().then(() => {
   });
 
   createWindow();
-  sendEngineState({ state: 'starting' });
-
-  try {
-    engine.start(config);
-    sendEngineState({ state: engine.isRunning() ? 'running' : 'stopped' });
-  } catch (err) {
-    log.error(`Engine start failed: ${err.message}`);
-    sendEngineState({ state: 'stopped' });
-  }
+  engine.start(config);
+  sendEngineState({ running: engine.isRunning() });
 });
 
 app.on('window-all-closed', () => {
-  if (engine) engine.stop();
+  if (engine && engine.stop) engine.stop();
   if (process.platform !== 'darwin') app.quit();
 });
 

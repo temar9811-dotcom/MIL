@@ -1,4 +1,4 @@
-// MIL engine v3 - intel restricted to configured channels
+// MIL engine v4 - sounds + notifications wired into fireAlert
 const { ChatLogWatcher } = require('./watcher');
 const { CharacterRegistry } = require('./registry');
 const { IntelData } = require('../intel/data');
@@ -6,6 +6,8 @@ const { IntelParser } = require('../intel/parser');
 const { IntelTracker } = require('../intel/tracker');
 const { Alerts } = require('../intel/alerts');
 const { TimeFilter } = require('../intel/timeFilter');
+const { SoundPlayer } = require('../sounds');
+const { NotificationSender } = require('../notifications');
 
 class Engine {
   constructor(log) {
@@ -22,6 +24,8 @@ class Engine {
     this.tracker = new IntelTracker(log);
     this.alerts = new Alerts({ presence: this.registry, data: this.data, log });
     this.timeFilter = new TimeFilter();
+    this.sounds = new SoundPlayer(log);
+    this.notifications = new NotificationSender(log);
   }
 
   handlers() {
@@ -31,9 +35,18 @@ class Engine {
   start(config) {
     this.config = config;
     this.alerts.setConfig(config);
+    this.applySoundConfig(config);
     this.running = true;
     this.watcher.start(config, this.handlers(), this.registry);
     this.log.info('Engine started');
+  }
+
+  applySoundConfig(config) {
+    const soundEnabled = config.soundEnabled !== false;
+    const notifEnabled = config.notificationEnabled !== false;
+    this.sounds.setEnabled(soundEnabled);
+    this.notifications.setEnabled(notifEnabled);
+    this.log.info(`Sound: ${soundEnabled}, Notifications: ${notifEnabled}`);
   }
 
   intelChannels() {
@@ -74,6 +87,10 @@ class Engine {
     this.log.alert(
       `${alert.type.toUpperCase()} ${alert.character} ${alert.jumps}j ${alert.pilot}${shipPart}`,
     );
+    
+    this.sounds.play(alert.type);
+    this.notifications.send(alert);
+    
     if (this.onAlert) this.onAlert(alert);
   }
 
@@ -88,6 +105,7 @@ class Engine {
     const newDir = config.logsDirectory || null;
     this.config = config;
     this.alerts.setConfig(config);
+    this.applySoundConfig(config);
     if (this.running && oldDir !== newDir) {
       this.watcher.start(config, this.handlers(), this.registry);
     }
