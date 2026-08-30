@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'" />
+  <title>MRCHI Intel Lite</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>MRCHI Intel Lite</h1>
+    <span id="engine-status" class="status">engine: starting…</span>
+    <label class="debug-label">
+      <input type="checkbox" id="debug-toggle" /> Debug
+    </label>
+  </header>
+
+  <main id="app">
+    <div class="columns">
+      <section class="panel" id="settings-panel">
+        <h2>Settings</h2>
+
+        <div class="row">
+          <label for="logs-dir">Chat logs folder</label>
+          <input id="logs-dir" type="text" placeholder="Documents\EVE\logs\Chatlogs (empty = auto)" />
+        </div>
+
+        <div class="row">
+          <label for="proximity-range">Proximity range (jumps)</label>
+          <input id="proximity-range" type="number" min="0" step="1" value="2" />
+        </div>
+
+        <div class="row">
+          <label for="channels">Intel channels (comma separated)</label>
+          <input id="channels" type="text" placeholder="Local, Intel" />
+        </div>
+
+        <div class="row checks">
+          <label><input id="sound" type="checkbox" checked /> Play sound on alert</label>
+          <label><input id="notifications" type="checkbox" checked /> Show OS notification</label>
+        </div>
+
+        <div class="row">
+          <label>Watch list (hostile markers)</label>
+          <div id="watch-list"></div>
+          <button id="add-watch" type="button">+ Add watch entry</button>
+        </div>
+
+        <div class="row">
+          <button id="save" type="button">Save</button>
+          <span id="save-state"></span>
+        </div>
+      </section>
+
+      <div class="right-col">
+        <section class="panel" id="alerts-panel">
+          <h2>Alerts</h2>
+          <div id="alerts"></div>
+        </section>
+
+        <section class="panel" id="debug-panel">
+          <h2>Debug Log <button id="clear-debug" type="button">Clear</button></h2>
+          <div id="debug-log"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

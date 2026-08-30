@@ -1,0 +1,47 @@
+{
+  "name": "mrchi-intel-lite",
+  "version": "1.0.0",
+  "description": "EVE Online Intel Alert Tool",
+  "main": "src/main/index.js",
+  "scripts": {
+    "start": "electron .",
+    "start:debug": "set DEBUG=1&& electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^35.7.5",
+    "electron-builder": "^26.0.0"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.3"
+  },
+  "build": {
+    "appId": "com.mrchi.intel-lite",
+    "productName": "MRCHI Intel Lite",
+    "win": {
+      "target": "nsis"
+    },
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "resources"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/temar9811-dotcom/MIL.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/temar9811-dotcom/MIL/issues"
+  },
+  "homepage": "https://github.com/temar9811-dotcom/MIL#readme",
+  "allowScripts": {
+    "electron@35.7.5": true
+  }
+}
