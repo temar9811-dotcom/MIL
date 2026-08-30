@@ -6,6 +6,7 @@ const channelsInput = document.getElementById('intel-channels');
 const soundCheckbox = document.getElementById('sound-enabled');
 const notificationCheckbox = document.getElementById('notification-enabled');
 const saveState = document.getElementById('save-state');
+const browseBtn = document.getElementById('browse-logs');
 
 window.loadSettings = (settings) => {
   if (!settings) return;
@@ -14,17 +15,30 @@ window.loadSettings = (settings) => {
   if (channelsInput) channelsInput.value = settings.intelChannels || '';
   if (soundCheckbox) soundCheckbox.checked = settings.soundEnabled !== false;
   if (notificationCheckbox) notificationCheckbox.checked = settings.notificationEnabled !== false;
-  
+
   if (settings.watchList && typeof window.renderWatchList === 'function') {
     window.renderWatchList(settings.watchList);
   }
 };
 
+if (browseBtn && logPathInput) {
+  browseBtn.addEventListener('click', async () => {
+    if (!window.electronAPI || !window.electronAPI.browseFolder) return;
+    const folder = await window.electronAPI.browseFolder();
+    if (folder) {
+      logPathInput.value = folder;
+      if (typeof window.appendDebug === 'function') {
+        window.appendDebug('INFO', `Log folder selected: ${folder}`);
+      }
+    }
+  });
+}
+
 if (settingsForm) {
   settingsForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (saveState) saveState.textContent = 'Saving...';
-    
+
     const settings = {
       logPath: logPathInput ? logPathInput.value : '',
       proximityRange: proximityInput ? parseInt(proximityInput.value) || 2 : 2,
@@ -33,7 +47,7 @@ if (settingsForm) {
       notificationEnabled: notificationCheckbox ? notificationCheckbox.checked : true,
       watchList: typeof window.getWatchListData === 'function' ? window.getWatchListData() : []
     };
-    
+
     try {
       if (!window.electronAPI || !window.electronAPI.saveSettings) {
         throw new Error('electronAPI.saveSettings is not available. Check preload script.');

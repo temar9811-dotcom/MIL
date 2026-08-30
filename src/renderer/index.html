@@ -22,7 +22,10 @@
         <form id="settings-form">
           <div class="row">
             <label for="log-path">Chat logs folder</label>
-            <input id="log-path" type="text" placeholder="Documents\EVE\logs\Chatlogs (empty = auto)" />
+            <div style="display: flex; gap: 8px;">
+              <input id="log-path" type="text" style="flex: 1;" placeholder="Documents\EVE\logs\Chatlogs (empty = auto)" />
+              <button id="browse-logs" type="button">Browse…</button>
+            </div>
           </div>
 
           <div class="row">
@@ -41,7 +44,10 @@
           </div>
 
           <div class="row">
-            <label>Watch list (hostile markers)</label>
+            <label>Soft alerts (watch list)</label>
+            <label style="display: block; color: #4ade80; margin: 4px 0 8px; cursor: default;">
+              Leave pilot or ship blank to match any. Extra range 0 = unlimited, a number limits pings to proximity + that many jumps.
+            </label>
             <div id="watch-list"></div>
             <button id="add-watch" type="button">+ Add watch entry</button>
           </div>

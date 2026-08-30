@@ -1,4 +1,4 @@
-const { ipcMain, app } = require('electron');
+const { ipcMain, app, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -39,6 +39,20 @@ function registerIpc(configApi, engine, log) {
     } catch (err) {
       log.error(`Failed to save settings: ${err.message}`);
       throw new Error(`Failed to save settings: ${err.message}`);
+    }
+  });
+
+  ipcMain.handle('browse-folder', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        properties: ['openDirectory'],
+        title: 'Select EVE chat logs folder',
+      });
+      if (result.canceled || result.filePaths.length === 0) return null;
+      return result.filePaths[0];
+    } catch (err) {
+      log.error(`Browse folder failed: ${err.message}`);
+      return null;
     }
   });
 

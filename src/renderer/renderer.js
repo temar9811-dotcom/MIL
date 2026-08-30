@@ -9,13 +9,9 @@ const STATUS_STYLES = {
 
 function applyEngineState(data) {
   if (!statusEl) return;
-
   let state = 'stopped';
-  if (data && typeof data.state === 'string') {
-    state = data.state;
-  } else if (data && data.running === true) {
-    state = 'running';
-  }
+  if (data && typeof data.state === 'string') state = data.state;
+  else if (data && data.running === true) state = 'running';
   if (!STATUS_STYLES[state]) state = 'stopped';
 
   const style = STATUS_STYLES[state];
@@ -23,19 +19,6 @@ function applyEngineState(data) {
   statusEl.style.background = style.bg;
   statusEl.style.color = style.fg;
   statusEl.style.borderColor = style.border;
-}
-
-function addAlert(type, message) {
-  const alertsList = document.getElementById('alerts');
-  if (!alertsList) return;
-  const alert = document.createElement('div');
-  alert.className = `alert alert-${type || 'soft'}`;
-  alert.textContent = message || String(type);
-  alertsList.insertBefore(alert, alertsList.firstChild);
-
-  while (alertsList.children.length > 10) {
-    alertsList.removeChild(alertsList.lastChild);
-  }
 }
 
 function appendDebugSafe(level, msg) {
@@ -47,9 +30,7 @@ async function init() {
     appendDebugSafe('ERROR', 'electronAPI missing - preload not loaded');
     return;
   }
-
   applyEngineState({ state: 'starting' });
-
   try {
     const settings = await window.electronAPI.getSettings();
     if (typeof loadSettings === 'function') loadSettings(settings);
@@ -57,7 +38,6 @@ async function init() {
   } catch (err) {
     appendDebugSafe('WARN', `Could not load settings: ${err.message}`);
   }
-
   try {
     const state = await window.electronAPI.getState();
     applyEngineState(state);
@@ -70,12 +50,10 @@ init();
 
 if (window.electronAPI) {
   window.electronAPI.onEngineState(applyEngineState);
-
   window.electronAPI.onDebugLog((line) => {
     if (typeof window.appendDebugLine === 'function') window.appendDebugLine(line);
   });
-
   window.electronAPI.onAlert((alert) => {
-    addAlert(alert.type, alert.message);
+    if (typeof window.addAlert === 'function') window.addAlert(alert);
   });
 }

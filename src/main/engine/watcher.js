@@ -1,66 +1,150 @@
+// MIL watcher v7 - per-file encoding sniff at offset 0
 const fs = require('fs');
 const path = require('path');
 const chokidar = require('chokidar');
+const { TimeFilter } = require('../intel/timeFilter');
+
+const STARTUP_ACTIVE_MS = 20 * 60 * 1000;
 
 class ChatLogWatcher {
   constructor(log) {
     this.log = log;
-    this.watcher = null;
-    this.onMessage = null;
+    this.chatWatcher = null;
+    this.gameWatcher = null;
+    this.handlers = null;
+    this.registry = null;
     this.offsets = new Map();
+    this.headers = new Map();
+    this.encodings = new Map();
+    this.timeFilter = new TimeFilter();
+    this.activityInterval = null;
   }
 
-  start(directory, onMessage) {
-    this.onMessage = onMessage;
+  start(config, handlers, registry) {
+    this.handlers = handlers;
+    this.registry = registry;
     this.stop();
 
-    const dir = this.resolveDir(directory);
-    if (!dir) {
+    const chatDir = this.resolveChatDir(config.logsDirectory);
+    if (!chatDir) {
       this.log.error('No chat logs directory found');
       return;
     }
+    const gameDir = this.resolveGameDir(chatDir);
 
-    this.log.watch(`Watching chat logs: ${dir}`);
+    this.log.watch(`Watching chat logs: ${chatDir}`);
+    if (gameDir) this.log.watch(`Watching game logs: ${gameDir}`);
 
-    // Initial scan: tail the last 64KB of existing files
-    for (const file of fs.readdirSync(dir)) {
-      if (file.toLowerCase().endsWith('.txt')) {
-        this.tailFile(path.join(dir, file), true);
-      }
-    }
+    this.scanDir(chatDir, 'chat');
+    if (gameDir) this.scanDir(gameDir, 'game');
 
-    this.watcher = chokidar.watch(dir, {
-      ignoreInitial: true,
-      persistent: true,
-      usePolling: true,
-      interval: 1000,
-      depth: 0,
-    });
+    this.chatWatcher = this.watchDir(chatDir, 'chat');
+    if (gameDir) this.gameWatcher = this.watchDir(gameDir, 'game');
 
-    this.watcher.on('add', (p) => this.tailFile(p, false));
-    this.watcher.on('change', (p) => this.tailFile(p, false));
+    this.activityInterval = setInterval(() => {
+      if (this.registry) this.registry.checkOffline();
+    }, 60000);
   }
 
-  resolveDir(configured) {
+  watchDir(dir, type) {
+    const w = chokidar.watch(dir, {
+      ignoreInitial: true, persistent: true, usePolling: true, interval: 1000, depth: 0,
+    });
+    w.on('add', (p) => this.tailFile(p, false, type));
+    w.on('change', (p) => this.tailFile(p, false, type));
+    return w;
+  }
+
+  scanDir(dir, type) {
+    let entries = [];
+    try { entries = fs.readdirSync(dir); } catch (_) { return; }
+    for (const file of entries) {
+      if (file.toLowerCase().endsWith('.txt')) {
+        this.tailFile(path.join(dir, file), true, type);
+      }
+    }
+  }
+
+  resolveChatDir(configured) {
     if (configured && fs.existsSync(configured)) return configured;
-    const candidates = [
+    const c = [
       path.join(process.env.USERPROFILE, 'Documents', 'EVE', 'logs', 'Chatlogs'),
       path.join(process.env.USERPROFILE, 'Documents', 'EVE', 'logs', 'ChatLogs'),
     ];
-    return candidates.find((c) => fs.existsSync(c)) || null;
+    return c.find((x) => fs.existsSync(x)) || null;
   }
 
-  tailFile(filePath, isInitial) {
-    let stat;
+  resolveGameDir(chatDir) {
+    const base = path.dirname(chatDir);
+    const g = [path.join(base, 'Gamelogs'), path.join(base, 'GameLogs'), path.join(base, 'gamelogs')];
+    return g.find((x) => fs.existsSync(x)) || null;
+  }
+
+  encodingFor(filePath) {
+    if (!this.encodings.has(filePath)) {
+      let enc = 'utf8';
+      try {
+        const fd = fs.openSync(filePath, 'r');
+        const b = Buffer.alloc(2);
+        fs.readSync(fd, b, 0, 2, 0);
+        fs.closeSync(fd);
+        if (b[0] === 0xFF && b[1] === 0xFE) enc = 'utf16le';
+      } catch (_) { /* default utf8 */ }
+      this.encodings.set(filePath, enc);
+    }
+    return this.encodings.get(filePath);
+  }
+
+  decodeChunk(buf, enc) {
+    const text = enc === 'utf16le' ? buf.toString('utf16le') : buf.toString('utf8');
+    return text.replace(/\uFEFF/g, '');
+  }
+
+  readHeader(filePath) {
     try {
-      stat = fs.statSync(filePath);
-    } catch (_) { return; }
+      const fd = fs.openSync(filePath, 'r');
+      const size = fs.fstatSync(fd).size;
+      const buf = Buffer.alloc(Math.min(8192, size));
+      fs.readSync(fd, buf, 0, buf.length, 0);
+      fs.closeSync(fd);
+      const lines = this.decodeChunk(buf, this.encodingFor(filePath)).split(/\r?\n/);
+      let character = null, channel = null, sessionStart = null;
+      for (const line of lines) {
+        const cm = line.match(/^Channel Name:\s*(.+)/i);
+        if (cm) channel = cm[1].trim();
+        const lm = line.match(/^Listener:\s*(.+)/i);
+        if (lm) character = lm[1].trim();
+        const sm = line.match(/^Session started:\s*(.+)/i);
+        if (sm) sessionStart = sm[1].trim();
+      }
+      return { character, channel, sessionStart };
+    } catch (_) {
+      return { character: null, channel: null, sessionStart: null };
+    }
+  }
+
+  metaFor(filePath, active) {
+    if (!this.headers.has(filePath)) {
+      const h = this.readHeader(filePath);
+      this.headers.set(filePath, h);
+      if (this.registry && h.character) {
+        this.registry.updateFromHeader(filePath, h.character, h.channel, h.sessionStart, active);
+      }
+    }
+    const header = this.headers.get(filePath);
+    return { character: header.character, channel: header.channel };
+  }
+
+  tailFile(filePath, isInitial, type) {
+    let stat;
+    try { stat = fs.statSync(filePath); } catch (_) { return; }
+
+    if (!this.timeFilter.isAfterDowntime(stat.mtime)) return;
 
     if (!this.offsets.has(filePath)) {
       const start = isInitial ? Math.max(0, stat.size - 65536) : 0;
       this.offsets.set(filePath, start);
     }
-
     const offset = this.offsets.get(filePath);
     if (stat.size <= offset) return;
 
@@ -70,19 +154,44 @@ class ChatLogWatcher {
     fs.closeSync(fd);
     this.offsets.set(filePath, stat.size);
 
-    for (const rawLine of buf.toString('utf8').split(/\r?\n/)) {
-      const msg = this.parseLine(rawLine, filePath);
-      if (msg && this.onMessage) this.onMessage(msg);
+    const active = !isInitial || (Date.now() - stat.mtimeMs) < STARTUP_ACTIVE_MS;
+    const meta = this.metaFor(filePath, active);
+
+    if (type === 'game') {
+      if (active && meta.character && this.registry) {
+        this.registry.recordActivity(meta.character);
+      }
+      return;
+    }
+
+    const text = this.decodeChunk(buf, this.encodingFor(filePath));
+    for (const rawLine of text.split(/\r?\n/)) {
+      const msg = this.parseLine(rawLine, filePath, meta);
+      if (!msg) continue;
+
+      if (active && meta.character && this.registry) {
+        this.registry.recordActivity(meta.character);
+      }
+
+      if (msg.author === 'EVE System' && (msg.channelName || '').toLowerCase() === 'local') {
+        const sys = msg.message.match(/Channel changed to Local\s*:\s*(.+)/i);
+        if (sys && meta.character && this.registry) {
+          this.registry.updateSystem(meta.character, sys[1].trim());
+        }
+      }
+
+      if (this.handlers && this.handlers.onMessage) {
+        this.handlers.onMessage(msg);
+      }
     }
   }
 
-  parseLine(rawLine, filePath) {
-    const line = rawLine.replace(/^﻿/, '').trim();
+  parseLine(rawLine, filePath, meta) {
+    const line = rawLine.trim();
     if (!line) return null;
     const m = line.match(/^\[\s*(\d{4}\.\d{2}\.\d{2}\s+\d{2}:\d{2}:\d{2})\s*\]\s+(.+?)\s+>\s+(.*)$/);
     if (!m) return null;
     const [, stamp, author, message] = m;
-    const meta = this.fileMeta(filePath);
     return {
       timestamp: stamp,
       author: author.trim(),
@@ -93,19 +202,13 @@ class ChatLogWatcher {
     };
   }
 
-  fileMeta(filePath) {
-    // EVE filename format: Character_Channel_YYYYMMDD_HHMMSS.txt
-    const base = path.basename(filePath, '.txt');
-    const parts = base.split('_');
-    if (parts.length >= 2) {
-      return { character: parts[0], channel: parts.slice(1, -2).join('_') || parts[1] };
-    }
-    return { character: null, channel: base };
-  }
-
   stop() {
-    if (this.watcher) { this.watcher.close(); this.watcher = null; }
+    if (this.chatWatcher) { this.chatWatcher.close(); this.chatWatcher = null; }
+    if (this.gameWatcher) { this.gameWatcher.close(); this.gameWatcher = null; }
+    if (this.activityInterval) { clearInterval(this.activityInterval); this.activityInterval = null; }
     this.offsets.clear();
+    this.headers.clear();
+    this.encodings.clear();
   }
 }
 

@@ -2,19 +2,22 @@
 const debugToggle = document.getElementById('debug-toggle');
 const debugPanel = document.getElementById('debug-panel');
 const clearDebugBtn = document.getElementById('clear-debug');
+const debugSection = debugPanel ? debugPanel.closest('section') : null;
 
-if (debugToggle && debugPanel) {
+function setDebugVisible(visible) {
+  const target = debugSection || debugPanel;
+  if (!target) return;
+  target.style.display = visible ? '' : 'none';
+}
+
+if (debugToggle) {
+  setDebugVisible(debugToggle.checked);
   debugToggle.addEventListener('change', () => {
-    if (debugToggle.checked) {
-      debugPanel.classList.remove('hidden');
-      if (window.electronAPI && window.electronAPI.toggleDebug) {
-        window.electronAPI.toggleDebug(true);
-      }
-    } else {
-      debugPanel.classList.add('hidden');
-      if (window.electronAPI && window.electronAPI.toggleDebug) {
-        window.electronAPI.toggleDebug(false);
-      }
+    const on = debugToggle.checked;
+    if (on && debugPanel) debugPanel.textContent = '';
+    setDebugVisible(on);
+    if (window.electronAPI && window.electronAPI.toggleDebug) {
+      window.electronAPI.toggleDebug(on);
     }
   });
 }
