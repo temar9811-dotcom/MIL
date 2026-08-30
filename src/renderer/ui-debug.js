@@ -1,8 +1,9 @@
 // src/renderer/ui-debug.js
 const debugToggle = document.getElementById('debug-toggle');
 const debugPanel = document.getElementById('debug-panel');
+const clearDebugBtn = document.getElementById('clear-debug');
 
-if (debugToggle) {
+if (debugToggle && debugPanel) {
   debugToggle.addEventListener('change', () => {
     if (debugToggle.checked) {
       debugPanel.classList.remove('hidden');
@@ -15,6 +16,12 @@ if (debugToggle) {
         window.electronAPI.toggleDebug(false);
       }
     }
+  });
+}
+
+if (clearDebugBtn && debugPanel) {
+  clearDebugBtn.addEventListener('click', () => {
+    debugPanel.textContent = '';
   });
 }
 
@@ -31,6 +38,6 @@ window.appendDebug = (level, msg) => {
 
 window.updateDebugLog = (lines) => {
   if (!debugPanel) return;
-  debugPanel.textContent = lines.join('\n');
+  debugPanel.textContent = Array.isArray(lines) ? lines.join('\n') : lines;
   debugPanel.scrollTop = debugPanel.scrollHeight;
 };

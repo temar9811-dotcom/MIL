@@ -17,7 +17,7 @@ function createWindow() {
     height: 750,
     title: 'MRCHI Intel Lite',
     webPreferences: {
-      preload: path.join(__dirname, '..', 'preload', 'preload.js'),
+      preload: path.join(__dirname, '..', 'preload', 'index.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -34,10 +34,10 @@ function sendEngineState(state) {
 app.whenReady().then(() => {
   log.setLogFile(path.join(app.getPath('userData'), 'debug.log'));
   log.info('App ready');
-  
+
   config = loadConfig();
   engine = new Engine(log);
-  
+
   registerIpc(
     {
       getConfig: () => config,
@@ -46,18 +46,25 @@ app.whenReady().then(() => {
     engine,
     log,
   );
-  
+
   engine.onAlert = (alert) => {
     if (mainWindow) mainWindow.webContents.send('alert', alert);
   };
-  
+
   log.onLog((level, msg, ts) => {
     if (mainWindow) mainWindow.webContents.send('engine-log', `[${level}] ${msg}`);
   });
-  
+
   createWindow();
-  engine.start(config);
-  sendEngineState({ running: engine.isRunning() });
+  sendEngineState({ state: 'starting' });
+
+  try {
+    engine.start(config);
+    sendEngineState({ state: engine.isRunning() ? 'running' : 'stopped' });
+  } catch (err) {
+    log.error(`Engine start failed: ${err.message}`);
+    sendEngineState({ state: 'stopped' });
+  }
 });
 
 app.on('window-all-closed', () => {

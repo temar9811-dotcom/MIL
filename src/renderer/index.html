@@ -19,37 +19,38 @@
     <div class="columns">
       <section class="panel" id="settings-panel">
         <h2>Settings</h2>
+        <form id="settings-form">
+          <div class="row">
+            <label for="log-path">Chat logs folder</label>
+            <input id="log-path" type="text" placeholder="Documents\EVE\logs\Chatlogs (empty = auto)" />
+          </div>
 
-        <div class="row">
-          <label for="logs-dir">Chat logs folder</label>
-          <input id="logs-dir" type="text" placeholder="Documents\EVE\logs\Chatlogs (empty = auto)" />
-        </div>
+          <div class="row">
+            <label for="proximity-range">Proximity range (jumps)</label>
+            <input id="proximity-range" type="number" min="0" step="1" value="2" />
+          </div>
 
-        <div class="row">
-          <label for="proximity-range">Proximity range (jumps)</label>
-          <input id="proximity-range" type="number" min="0" step="1" value="2" />
-        </div>
+          <div class="row">
+            <label for="intel-channels">Intel channels (comma separated)</label>
+            <input id="intel-channels" type="text" placeholder="Local, Intel" />
+          </div>
 
-        <div class="row">
-          <label for="channels">Intel channels (comma separated)</label>
-          <input id="channels" type="text" placeholder="Local, Intel" />
-        </div>
+          <div class="row checks">
+            <label><input id="sound-enabled" type="checkbox" checked /> Play sound on alert</label>
+            <label><input id="notification-enabled" type="checkbox" checked /> Show OS notification</label>
+          </div>
 
-        <div class="row checks">
-          <label><input id="sound" type="checkbox" checked /> Play sound on alert</label>
-          <label><input id="notifications" type="checkbox" checked /> Show OS notification</label>
-        </div>
+          <div class="row">
+            <label>Watch list (hostile markers)</label>
+            <div id="watch-list"></div>
+            <button id="add-watch" type="button">+ Add watch entry</button>
+          </div>
 
-        <div class="row">
-          <label>Watch list (hostile markers)</label>
-          <div id="watch-list"></div>
-          <button id="add-watch" type="button">+ Add watch entry</button>
-        </div>
-
-        <div class="row">
-          <button id="save" type="button">Save</button>
-          <span id="save-state"></span>
-        </div>
+          <div class="row">
+            <button id="save" type="submit">Save</button>
+            <span id="save-state"></span>
+          </div>
+        </form>
       </section>
 
       <div class="right-col">
@@ -58,14 +59,21 @@
           <div id="alerts"></div>
         </section>
 
-        <section class="panel" id="debug-panel">
-          <h2>Debug Log <button id="clear-debug" type="button">Clear</button></h2>
-          <div id="debug-log"></div>
+        <section class="panel">
+          <div class="debug-header">
+            <h2>Debug Log</h2>
+            <button id="clear-debug" type="button">Clear</button>
+          </div>
+          <pre id="debug-panel"></pre>
         </section>
       </div>
     </div>
   </main>
 
+  <script src="ui-watchlist.js"></script>
+  <script src="ui-settings.js"></script>
+  <script src="ui-debug.js"></script>
+  <script src="ui-alerts.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>
