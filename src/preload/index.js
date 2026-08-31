@@ -1,4 +1,4 @@
-// MIL preload v5 - pop-out alerts API
+// MIL preload v6 - adds browseWav
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -8,8 +8,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
   saveConfig: (config) => ipcRenderer.invoke('save-config', config),
   browseFolder: () => ipcRenderer.invoke('browse-folder'),
+  browseWav: () => ipcRenderer.invoke('browse-wav'),
   popoutAlerts: () => ipcRenderer.invoke('popout-alerts'),
-  setAlwaysOnTop: (on) => ipcRenderer.invoke('set-always-on-top', on),
+  setAlwaysOnTop: (on) => ipcRenderer.invoke('set-always-on-top'),
   onAlert: (cb) => ipcRenderer.on('alert', (event, data) => cb(data)),
   onEngineLog: (cb) => ipcRenderer.on('engine-log', (event, line) => cb(line)),
   onDebugLog: (cb) => ipcRenderer.on('engine-log', (event, line) => cb(line)),

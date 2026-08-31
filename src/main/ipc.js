@@ -1,4 +1,4 @@
-// MIL ipc v4 - version exposed via get-state
+// MIL ipc v5 - adds browse-wav file picker
 const { ipcMain, app, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -65,6 +65,21 @@ function registerIpc(configApi, engine, log) {
       return result.filePaths[0];
     } catch (err) {
       log.error(`Browse folder failed: ${err.message}`);
+      return null;
+    }
+  });
+
+  ipcMain.handle('browse-wav', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        properties: ['openFile'],
+        title: 'Select alert sound',
+        filters: [{ name: 'WAV audio', extensions: ['wav'] }],
+      });
+      if (result.canceled || result.filePaths.length === 0) return null;
+      return result.filePaths[0];
+    } catch (err) {
+      log.error(`Browse wav failed: ${err.message}`);
       return null;
     }
   });

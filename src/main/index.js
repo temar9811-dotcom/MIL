@@ -1,5 +1,5 @@
-// MIL main v2 - window state persistence
-const { app, BrowserWindow } = require('electron');
+// MIL main v5 - collapsed menu bar (main) / no menu bar (pop-out)
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { DebugLog } = require('./debug');
@@ -10,6 +10,7 @@ const { Engine } = require('./engine');
 const DEBUG = process.env.DEBUG === '1';
 const log = new DebugLog(DEBUG);
 let mainWindow = null;
+let alertsWindow = null;
 let config = null;
 let engine = null;
 let saveTimer = null;
@@ -59,6 +60,10 @@ function createWindow() {
   });
   if (state && state.isMaximized) mainWindow.maximize();
 
+  // Collapse the menu bar: hidden by default, Alt still summons it
+  mainWindow.setAutoHideMenuBar(true);
+  mainWindow.setMenuBarVisibility(false);
+
   mainWindow.on('move', scheduleSaveWindowState);
   mainWindow.on('resize', scheduleSaveWindowState);
   mainWindow.on('close', saveWindowState);
@@ -66,6 +71,32 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   log.info('Window created');
+}
+
+function createAlertsWindow() {
+  if (alertsWindow) {
+    if (alertsWindow.isMinimized()) alertsWindow.restore();
+    alertsWindow.focus();
+    return;
+  }
+  alertsWindow = new BrowserWindow({
+    width: 520,
+    height: 640,
+    title: 'MRCHI Alerts',
+    alwaysOnTop: true,
+    webPreferences: {
+      preload: path.join(__dirname, '..', 'preload', 'index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  // No menu bar at all in the pop-out
+  alertsWindow.setMenu(null);
+
+  alertsWindow.loadFile(path.join(__dirname, '..', 'renderer', 'alerts.html'));
+  alertsWindow.on('closed', () => { alertsWindow = null; });
+  log.info('Alerts pop-out window opened');
 }
 
 function sendEngineState(state) {
@@ -88,8 +119,19 @@ app.whenReady().then(() => {
     log,
   );
 
+  ipcMain.handle('popout-alerts', () => {
+    createAlertsWindow();
+    return { ok: true };
+  });
+
+  ipcMain.handle('set-always-on-top', (_, on) => {
+    if (alertsWindow) alertsWindow.setAlwaysOnTop(!!on);
+    return { ok: true };
+  });
+
   engine.onAlert = (alert) => {
     if (mainWindow) mainWindow.webContents.send('alert', alert);
+    if (alertsWindow) alertsWindow.webContents.send('alert', alert);
   };
 
   log.onLog((level, msg, ts) => {

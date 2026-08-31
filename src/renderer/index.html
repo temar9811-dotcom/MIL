@@ -1,4 +1,4 @@
-<!-- MIL index.html v7 -->
+<!-- MIL index.html v10 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -13,6 +13,9 @@
     <span id="engine-status" class="status">engine: starting…</span>
     <label class="debug-label">
       <input type="checkbox" id="debug-toggle" /> Debug
+    </label>
+    <label class="debug-label">
+      <input type="checkbox" id="big-text" /> Bigger text
     </label>
   </header>
 
@@ -48,10 +51,34 @@
           </div>
 
           <div class="row">
-            <label for="alert-volume">Alert volume</label>
+            <label for="volume-red">Red alert volume</label>
             <div style="display: flex; align-items: center; gap: 8px;">
-              <input id="alert-volume" type="range" min="0" max="100" step="5" value="50" style="flex: 1;" />
-              <span id="alert-volume-label" style="width: 42px;">50%</span>
+              <input id="volume-red" type="range" min="0" max="100" step="5" value="50" style="flex: 1;" />
+              <span id="volume-red-label" style="width: 42px;">50%</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <label for="volume-soft">Soft alert volume</label>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input id="volume-soft" type="range" min="0" max="100" step="5" value="50" style="flex: 1;" />
+              <span id="volume-soft-label" style="width: 42px;">50%</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <label for="alert-sound-path">Red alert sound (.wav)</label>
+            <div style="display: flex; gap: 8px;">
+              <input id="alert-sound-path" type="text" style="flex: 1;" placeholder="built-in alert.wav" />
+              <button id="browse-alert-sound" type="button">Browse…</button>
+            </div>
+          </div>
+
+          <div class="row">
+            <label for="soft-sound-path">Soft alert sound (.wav)</label>
+            <div style="display: flex; gap: 8px;">
+              <input id="soft-sound-path" type="text" style="flex: 1;" placeholder="built-in soft.wav" />
+              <button id="browse-soft-sound" type="button">Browse…</button>
             </div>
           </div>
 
@@ -82,7 +109,7 @@
             <h2>Alerts</h2>
             <button id="popout-alerts" type="button">Pop out</button>
           </div>
-          <div id="alerts"></div>
+          <div id="alerts" style="min-height: 140px; max-height: 340px; overflow-y: auto;"></div>
         </section>
 
         <section class="panel">

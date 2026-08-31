@@ -1,6 +1,6 @@
 {
   "name": "mrchi-intel-lite",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "EVE Online Intel Alert Tool",
   "main": "src/main/index.js",
   "scripts": {
@@ -20,7 +20,6 @@
   "build": {
     "appId": "com.mrchi.intel-lite",
     "productName": "MRCHI Intel Lite",
-    "asar": false,
     "files": [
       "**/*",
       "!static.db",
@@ -57,5 +56,10 @@
   "bugs": {
     "url": "https://github.com/temar9811-dotcom/MIL/issues"
   },
-  "homepage": "https://github.com/temar9811-dotcom/MIL#readme"
+  "homepage": "https://github.com/temar9811-dotcom/MIL#readme",
+  "allowScripts": {
+    "electron@35.7.5": true,
+    "sqlite3@6.0.1": true,
+    "electron-winstaller@5.4.0": true
+  }
 }

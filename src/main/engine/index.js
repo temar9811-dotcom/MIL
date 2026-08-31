@@ -1,4 +1,4 @@
-// MIL engine v6 - alert history persistence
+// MIL engine v7 - per-sound volume + custom wavs from settings
 const { app } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -73,8 +73,12 @@ class Engine {
     const notifEnabled = config.notificationEnabled !== false && config.notifications !== false;
     this.sounds.setEnabled(soundEnabled);
     this.notifications.setEnabled(notifEnabled);
-    this.sounds.setVolume(config.volume == null ? 50 : config.volume);
-    this.log.info(`Sound: ${soundEnabled}, Notifications: ${notifEnabled}, Volume: ${this.sounds.volume}%`);
+
+    const legacy = config.volume == null ? 50 : config.volume;
+    const red = config.volumeRed == null ? legacy : config.volumeRed;
+    const soft = config.volumeSoft == null ? legacy : config.volumeSoft;
+    this.sounds.setVolumes(red, soft);
+    this.sounds.setCustomPaths(config.alertSoundPath || null, config.softSoundPath || null);
   }
 
   intelChannels() {
