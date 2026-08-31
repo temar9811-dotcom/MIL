@@ -1,0 +1,27 @@
+<!-- MIL alerts.html v1 -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'" />
+  <title>MRCHI Alerts</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Alerts</h1>
+    <label class="debug-label">
+      <input type="checkbox" id="always-on-top" checked /> Always on top
+    </label>
+  </header>
+
+  <main id="app">
+    <section class="panel">
+      <div id="alerts"></div>
+    </section>
+  </main>
+
+  <script src="ui-alerts.js"></script>
+  <script src="alerts-window.js"></script>
+</body>
+</html>

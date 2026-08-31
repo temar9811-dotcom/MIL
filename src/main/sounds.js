@@ -1,8 +1,12 @@
-// MIL sounds v5 - packaged-aware sound paths
+// MIL sounds v6 - master gain: output = slider * MASTER_GAIN
 const { app } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { exec } = require('child_process');
+
+// Master attenuation applied ON TOP of the in-app slider (0.7 = 30% quieter).
+// Retune this one number if testers still find it loud.
+const MASTER_GAIN = 0.7;
 
 class SoundPlayer {
   constructor(log) {
@@ -32,7 +36,7 @@ class SoundPlayer {
 
   setVolume(v) {
     this.volume = Math.max(0, Math.min(100, Number(v) || 0));
-    this.log.info(`Alert volume set to ${this.volume}%`);
+    this.log.info(`Alert volume set to ${this.volume}% (effective ${Math.round(this.volume * MASTER_GAIN)}%)`);
   }
 
   mediaPlayerCmd(file, vol) {
@@ -72,8 +76,9 @@ class SoundPlayer {
       return;
     }
 
-    this.log.info(`Playing sound: ${path.basename(file)} at ${this.volume}%`);
-    const vol = (this.volume / 100).toFixed(2);
+    const effective = Math.round(this.volume * MASTER_GAIN);
+    this.log.info(`Playing sound: ${path.basename(file)} at ${this.volume}% slider (${effective}% effective)`);
+    const vol = ((this.volume / 100) * MASTER_GAIN).toFixed(2);
 
     try {
       const cmd = `powershell.exe -NoProfile -WindowStyle Hidden -Command "${this.mediaPlayerCmd(file, vol)}"`;

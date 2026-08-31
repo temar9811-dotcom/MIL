@@ -1,4 +1,4 @@
-<!-- MIL index.html v5 -->
+<!-- MIL index.html v7 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -9,7 +9,7 @@
 </head>
 <body>
   <header>
-    <h1>MRCHI Intel Lite</h1>
+    <h1>MRCHI Intel Lite <span id="app-version" style="font-size: 0.55em; color: #888; vertical-align: middle;"></span></h1>
     <span id="engine-status" class="status">engine: starting…</span>
     <label class="debug-label">
       <input type="checkbox" id="debug-toggle" /> Debug
@@ -78,7 +78,10 @@
         </section>
 
         <section class="panel" id="alerts-panel">
-          <h2>Alerts</h2>
+          <div class="debug-header">
+            <h2>Alerts</h2>
+            <button id="popout-alerts" type="button">Pop out</button>
+          </div>
           <div id="alerts"></div>
         </section>
 

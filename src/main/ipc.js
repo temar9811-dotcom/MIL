@@ -1,4 +1,4 @@
-// MIL ipc v3 - adds get-characters
+// MIL ipc v4 - version exposed via get-state
 const { ipcMain, app, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -10,6 +10,7 @@ function registerIpc(configApi, engine, log) {
     config: configApi.getConfig(),
     recents: engine.getRecentAlerts ? engine.getRecentAlerts() : [],
     running: engine.isRunning(),
+    version: app.getVersion(),
   }));
 
   ipcMain.handle('get-characters', () => {

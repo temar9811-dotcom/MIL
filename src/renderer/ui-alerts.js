@@ -1,5 +1,6 @@
-// MIL ui-alerts v4 - alert history rendering
+// MIL ui-alerts v5 - pop-out button wiring
 const alertsList = document.getElementById('alerts');
+const popoutBtn = document.getElementById('popout-alerts');
 
 function makeCard(data) {
   const el = document.createElement('div');
@@ -43,3 +44,11 @@ window.renderAlertHistory = (list) => {
 window.clearAlerts = () => {
   if (alertsList) alertsList.innerHTML = '';
 };
+
+if (popoutBtn) {
+  popoutBtn.addEventListener('click', () => {
+    if (window.electronAPI && window.electronAPI.popoutAlerts) {
+      window.electronAPI.popoutAlerts();
+    }
+  });
+}

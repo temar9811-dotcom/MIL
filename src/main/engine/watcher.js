@@ -1,10 +1,12 @@
-// MIL watcher v8 - header regexes tolerate EVE's indented header block
+// MIL watcher v11 - native dir watch on Windows + 30s catch-up sweep
+const { app } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const chokidar = require('chokidar');
 const { TimeFilter } = require('../intel/timeFilter');
 
 const STARTUP_ACTIVE_MS = 20 * 60 * 1000;
+const SWEEP_MS = 30 * 1000;
 
 class ChatLogWatcher {
   constructor(log) {
@@ -18,25 +20,44 @@ class ChatLogWatcher {
     this.encodings = new Map();
     this.timeFilter = new TimeFilter();
     this.activityInterval = null;
+    this.sweepInterval = null;
+    this.chatDir = null;
+    this.gameDir = null;
+    this.minDateStr = '00000000';
+  }
+
+  downtimeDateStr() {
+    const c = this.timeFilter.getDowntimeCutoff();
+    const mo = String(c.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(c.getUTCDate()).padStart(2, '0');
+    return `${c.getUTCFullYear()}${mo}${d}`;
+  }
+
+  isOldByName(fileName) {
+    const m = fileName.match(/(\d{8})/);
+    return !!m && m[1] < this.minDateStr;
   }
 
   start(config, handlers, registry) {
     this.handlers = handlers;
     this.registry = registry;
+    this.minDateStr = this.downtimeDateStr();
     this.stop();
 
     const chatDir = this.resolveChatDir(config.logsDirectory);
     if (!chatDir) {
-      this.log.error('No chat logs directory found');
+      this.log.error('No chat logs directory found - set it manually via Browse…');
       return;
     }
     const gameDir = this.resolveGameDir(chatDir);
+    this.chatDir = chatDir;
+    this.gameDir = gameDir;
 
     this.log.watch(`Watching chat logs: ${chatDir}`);
     if (gameDir) this.log.watch(`Watching game logs: ${gameDir}`);
 
-    this.scanDir(chatDir, 'chat');
-    if (gameDir) this.scanDir(gameDir, 'game');
+    this.scanDir(chatDir, 'chat', false);
+    if (gameDir) this.scanDir(gameDir, 'game', false);
 
     this.chatWatcher = this.watchDir(chatDir, 'chat');
     if (gameDir) this.gameWatcher = this.watchDir(gameDir, 'game');
@@ -44,34 +65,68 @@ class ChatLogWatcher {
     this.activityInterval = setInterval(() => {
       if (this.registry) this.registry.checkOffline();
     }, 60000);
+
+    this.sweepInterval = setInterval(() => this.sweep(), SWEEP_MS);
+  }
+
+  sweep() {
+    if (this.chatDir) this.scanDir(this.chatDir, 'chat', true);
+    if (this.gameDir) this.scanDir(this.gameDir, 'game', true);
   }
 
   watchDir(dir, type) {
+    const isWin = process.platform === 'win32';
     const w = chokidar.watch(dir, {
-      ignoreInitial: true, persistent: true, usePolling: true, interval: 1000, depth: 0,
+      ignoreInitial: true,
+      persistent: true,
+      usePolling: !isWin,
+      interval: 2000,
+      depth: 0,
+      awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 100 },
+      ignored: (p) => {
+        if (!p.toLowerCase().endsWith('.txt')) return false;
+        return this.isOldByName(path.basename(p));
+      },
     });
     w.on('add', (p) => this.tailFile(p, false, type));
     w.on('change', (p) => this.tailFile(p, false, type));
     return w;
   }
 
-  scanDir(dir, type) {
+  scanDir(dir, type, quiet) {
     let entries = [];
     try { entries = fs.readdirSync(dir); } catch (_) { return; }
+    let count = 0;
+    let skipped = 0;
     for (const file of entries) {
-      if (file.toLowerCase().endsWith('.txt')) {
-        this.tailFile(path.join(dir, file), true, type);
-      }
+      if (!file.toLowerCase().endsWith('.txt')) continue;
+      if (this.isOldByName(file)) { skipped++; continue; }
+      count++;
+      this.tailFile(path.join(dir, file), true, type);
     }
+    if (!quiet) {
+      this.log.watch(`Initial scan (${type}): ${count} log files (skipped ${skipped} old)`);
+    }
+  }
+
+  documentsCandidates() {
+    const docs = [];
+    try { docs.push(app.getPath('documents')); } catch (_) { /* not ready */ }
+    if (process.env.OneDrive) docs.push(path.join(process.env.OneDrive, 'Documents'));
+    if (process.env.OneDriveDocuments) docs.push(process.env.OneDriveDocuments);
+    if (process.env.USERPROFILE) docs.push(path.join(process.env.USERPROFILE, 'Documents'));
+    return [...new Set(docs.filter(Boolean))];
   }
 
   resolveChatDir(configured) {
     if (configured && fs.existsSync(configured)) return configured;
-    const c = [
-      path.join(process.env.USERPROFILE, 'Documents', 'EVE', 'logs', 'Chatlogs'),
-      path.join(process.env.USERPROFILE, 'Documents', 'EVE', 'logs', 'ChatLogs'),
-    ];
-    return c.find((x) => fs.existsSync(x)) || null;
+    for (const d of this.documentsCandidates()) {
+      for (const sub of ['Chatlogs', 'ChatLogs']) {
+        const p = path.join(d, 'EVE', 'logs', sub);
+        if (fs.existsSync(p)) return p;
+      }
+    }
+    return null;
   }
 
   resolveGameDir(chatDir) {
@@ -211,6 +266,7 @@ class ChatLogWatcher {
     if (this.chatWatcher) { this.chatWatcher.close(); this.chatWatcher = null; }
     if (this.gameWatcher) { this.gameWatcher.close(); this.gameWatcher = null; }
     if (this.activityInterval) { clearInterval(this.activityInterval); this.activityInterval = null; }
+    if (this.sweepInterval) { clearInterval(this.sweepInterval); this.sweepInterval = null; }
     this.offsets.clear();
     this.headers.clear();
     this.encodings.clear();
