@@ -1,3 +1,4 @@
+// MIL preload v2 - adds browseFolder
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -5,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
   saveConfig: (config) => ipcRenderer.invoke('save-config', config),
+  browseFolder: () => ipcRenderer.invoke('browse-folder'),
   onAlert: (cb) => ipcRenderer.on('alert', (event, data) => cb(data)),
   onEngineLog: (cb) => ipcRenderer.on('engine-log', (event, line) => cb(line)),
   onDebugLog: (cb) => ipcRenderer.on('engine-log', (event, line) => cb(line)),

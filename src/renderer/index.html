@@ -1,3 +1,4 @@
+<!-- MIL index.html v4 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -35,12 +36,23 @@
 
           <div class="row">
             <label for="intel-channels">Intel channels (comma separated)</label>
-            <input id="intel-channels" type="text" placeholder="Local, Intel" />
+            <div style="display: flex; gap: 8px;">
+              <input id="intel-channels" type="text" style="flex: 1;" placeholder="fareast.imperium" />
+              <button id="imperium-intel" type="button">Imperium Intel</button>
+            </div>
           </div>
 
           <div class="row checks">
             <label><input id="sound-enabled" type="checkbox" checked /> Play sound on alert</label>
             <label><input id="notification-enabled" type="checkbox" checked /> Show OS notification</label>
+          </div>
+
+          <div class="row">
+            <label for="alert-volume">Alert volume</label>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input id="alert-volume" type="range" min="0" max="100" step="5" value="50" style="flex: 1;" />
+              <span id="alert-volume-label" style="width: 42px;">50%</span>
+            </div>
           </div>
 
           <div class="row">

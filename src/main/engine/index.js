@@ -1,4 +1,4 @@
-// MIL engine v4 - sounds + notifications wired into fireAlert
+// MIL engine v5 - volume applied from settings
 const { ChatLogWatcher } = require('./watcher');
 const { CharacterRegistry } = require('./registry');
 const { IntelData } = require('../intel/data');
@@ -42,11 +42,12 @@ class Engine {
   }
 
   applySoundConfig(config) {
-    const soundEnabled = config.soundEnabled !== false;
-    const notifEnabled = config.notificationEnabled !== false;
+    const soundEnabled = config.soundEnabled !== false && config.sound !== false;
+    const notifEnabled = config.notificationEnabled !== false && config.notifications !== false;
     this.sounds.setEnabled(soundEnabled);
     this.notifications.setEnabled(notifEnabled);
-    this.log.info(`Sound: ${soundEnabled}, Notifications: ${notifEnabled}`);
+    this.sounds.setVolume(config.volume == null ? 50 : config.volume);
+    this.log.info(`Sound: ${soundEnabled}, Notifications: ${notifEnabled}, Volume: ${this.sounds.volume}%`);
   }
 
   intelChannels() {
@@ -87,10 +88,10 @@ class Engine {
     this.log.alert(
       `${alert.type.toUpperCase()} ${alert.character} ${alert.jumps}j ${alert.pilot}${shipPart}`,
     );
-    
+
     this.sounds.play(alert.type);
     this.notifications.send(alert);
-    
+
     if (this.onAlert) this.onAlert(alert);
   }
 

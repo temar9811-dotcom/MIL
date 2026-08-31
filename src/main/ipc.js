@@ -1,3 +1,4 @@
+// MIL ipc v2 - adds browse-folder dialog
 const { ipcMain, app, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');

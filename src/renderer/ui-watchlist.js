@@ -1,82 +1,67 @@
-// Watch list UI module: rows, live summaries, add button.
-(function () {
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, (c) =>
-      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// MIL ui-watchlist v3 - ignores accidental fully-blank rows on save
+const watchListEl = document.getElementById('watch-list');
+const addWatchBtn = document.getElementById('add-watch');
+
+function makeRow(entry) {
+  const row = document.createElement('div');
+  row.className = 'watch-row';
+  row.style.display = 'flex';
+  row.style.gap = '6px';
+  row.style.marginBottom = '6px';
+
+  const pilot = document.createElement('input');
+  pilot.type = 'text';
+  pilot.placeholder = 'Pilot (blank = any)';
+  pilot.style.flex = '1';
+  pilot.value = entry && entry.pilot ? entry.pilot : '';
+
+  const ship = document.createElement('input');
+  ship.type = 'text';
+  ship.placeholder = 'Ship (blank = any)';
+  ship.style.flex = '1';
+  ship.value = entry && entry.ship ? entry.ship : '';
+
+  const extra = document.createElement('input');
+  extra.type = 'number';
+  extra.min = '0';
+  extra.step = '1';
+  extra.title = 'Extra jumps beyond proximity (0 = unlimited)';
+  extra.style.width = '70px';
+  extra.value = entry && entry.extraRange != null ? entry.extraRange : 0;
+
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.textContent = 'X';
+  del.addEventListener('click', () => row.remove());
+
+  row.append(pilot, ship, extra, del);
+  return row;
+}
+
+window.renderWatchList = (list) => {
+  if (!watchListEl) return;
+  watchListEl.innerHTML = '';
+  (Array.isArray(list) ? list : []).forEach((e) => watchListEl.appendChild(makeRow(e)));
+};
+
+window.getWatchListData = () => {
+  if (!watchListEl) return [];
+  const rows = [...watchListEl.querySelectorAll('.watch-row')];
+  const out = [];
+  for (const row of rows) {
+    const inputs = row.querySelectorAll('input');
+    const pilot = inputs[0].value.trim();
+    const ship = inputs[1].value.trim();
+    const extraRange = parseInt(inputs[2].value, 10) || 0;
+    // Footgun guard: blank+blank+0 would match everything everywhere - skip it
+    if (!pilot && !ship && extraRange === 0) continue;
+    out.push({ pilot, ship, extraRange });
   }
+  return out;
+};
 
-  function describeEntry(w, proximity) {
-    const pilot = (w.characterName || '').trim();
-    const ships = (w.shipClasses || []).map((s) => s.trim()).filter(Boolean);
-    const extra = Number(w.extraRange) || 0;
-
-    const who = pilot && ships.length ? `${pilot} in a ${ships.join(' / ')}`
-      : pilot ? `pilot ${pilot}, any ship`
-      : ships.length ? `any pilot in a ${ships.join(' / ')}`
-      : 'any pilot, any ship';
-
-    const where = extra > 0
-      ? `${proximity + 1}-${proximity + extra} jumps out`
-      : `any distance beyond ${proximity} jumps`;
-
-    return `Soft-ping ${who}, ${where}`;
-  }
-
-  function rowHtml(w, i) {
-    return `
-      <input data-i="${i}" data-k="characterName" value="${escapeHtml(w.characterName || '')}" placeholder="Pilot (blank = any)" />
-      <input data-i="${i}" data-k="shipClasses" value="${escapeHtml((w.shipClasses || []).join(', '))}" placeholder="Ship (blank = any)" />
-      <input data-i="${i}" data-k="extraRange" type="number" min="0" step="1" value="${w.extraRange ?? 0}" title="Extra jumps on top of proximity (0 = unlimited)" />
-      <label title="Enabled"><input data-i="${i}" data-k="enabled" type="checkbox" ${w.enabled ? 'checked' : ''} /></label>
-    `;
-  }
-
-  function init(elements, getConfig) {
-    const { container, addBtn } = elements;
-
-    function render() {
-      const config = getConfig();
-      container.innerHTML = '';
-      (config.watchList || []).forEach((w, i) => {
-        const entry = document.createElement('div');
-        entry.className = 'watch-entry';
-        entry.innerHTML = `<div class="watch-row">${rowHtml(w, i)}</div>
-          <div class="watch-summary">${escapeHtml(describeEntry(w, config.proximityRange ?? 0))}</div>`;
-        container.appendChild(entry);
-      });
-    }
-
-    function refreshSummaries(proximityOverride) {
-      const config = getConfig();
-      const prox = proximityOverride ?? config.proximityRange ?? 0;
-      container.querySelectorAll('.watch-entry').forEach((el, i) => {
-        const w = (config.watchList || [])[i];
-        if (w) el.querySelector('.watch-summary').textContent = describeEntry(w, prox);
-      });
-    }
-
-    container.addEventListener('input', (e) => {
-      const i = +e.target.dataset.i;
-      const k = e.target.dataset.k;
-      const w = (getConfig().watchList || [])[i];
-      if (!w) return;
-      if (k === 'extraRange') w.extraRange = Math.max(0, +e.target.value || 0);
-      else if (k === 'enabled') w.enabled = e.target.checked;
-      else if (k === 'shipClasses') w.shipClasses = e.target.value.split(',').map((s) => s.trim()).filter(Boolean);
-      else w[k] = e.target.value;
-      refreshSummaries();
-    });
-
-    addBtn.addEventListener('click', () => {
-      const config = getConfig();
-      config.watchList = config.watchList || [];
-      config.watchList.push({ characterName: '', shipClasses: [], extraRange: 0, enabled: true });
-      render();
-    });
-
-    render();
-    return { render, refreshSummaries };
-  }
-
-  window.uiWatchList = { init, describeEntry };
-})();
+if (addWatchBtn) {
+  addWatchBtn.addEventListener('click', () => {
+    if (watchListEl) watchListEl.appendChild(makeRow(null));
+  });
+}

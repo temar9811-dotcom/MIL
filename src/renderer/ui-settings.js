@@ -1,25 +1,66 @@
-// src/renderer/ui-settings.js
+// MIL ui-settings v4 - volume slider + Imperium Intel button
 const settingsForm = document.getElementById('settings-form');
-const logPathInput = document.getElementById('log-path');
+const logPathInput = document.getElementById('log-path') || document.getElementById('logs-dir');
 const proximityInput = document.getElementById('proximity-range');
-const channelsInput = document.getElementById('intel-channels');
-const soundCheckbox = document.getElementById('sound-enabled');
-const notificationCheckbox = document.getElementById('notification-enabled');
+const channelsInput = document.getElementById('intel-channels') || document.getElementById('channels');
+const soundCheckbox = document.getElementById('sound-enabled') || document.getElementById('sound');
+const notificationCheckbox = document.getElementById('notification-enabled') || document.getElementById('notifications');
 const saveState = document.getElementById('save-state');
 const browseBtn = document.getElementById('browse-logs');
+const volumeInput = document.getElementById('alert-volume');
+const volumeLabel = document.getElementById('alert-volume-label');
+const imperiumBtn = document.getElementById('imperium-intel');
+
+const IMPERIUM_INTEL = [
+  'fareast.imperium',
+  'east.imperium',
+  'west.imperium',
+  'southeast.imperium',
+  'gem.imperium',
+];
+
+function updateVolumeLabel() {
+  if (volumeLabel && volumeInput) volumeLabel.textContent = `${volumeInput.value}%`;
+}
 
 window.loadSettings = (settings) => {
   if (!settings) return;
   if (logPathInput) logPathInput.value = settings.logPath || '';
   if (proximityInput) proximityInput.value = settings.proximityRange ?? 2;
   if (channelsInput) channelsInput.value = settings.intelChannels || '';
-  if (soundCheckbox) soundCheckbox.checked = settings.soundEnabled !== false;
-  if (notificationCheckbox) notificationCheckbox.checked = settings.notificationEnabled !== false;
+  if (soundCheckbox) soundCheckbox.checked = settings.soundEnabled !== false && settings.sound !== false;
+  if (notificationCheckbox) notificationCheckbox.checked = settings.notificationEnabled !== false && settings.notifications !== false;
+  if (volumeInput) volumeInput.value = settings.volume == null ? 50 : settings.volume;
+  updateVolumeLabel();
 
   if (settings.watchList && typeof window.renderWatchList === 'function') {
     window.renderWatchList(settings.watchList);
   }
 };
+
+if (volumeInput) {
+  volumeInput.addEventListener('input', updateVolumeLabel);
+}
+
+if (imperiumBtn && channelsInput) {
+  imperiumBtn.addEventListener('click', () => {
+    const current = String(channelsInput.value || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const seen = new Set(current.map((s) => s.toLowerCase()));
+    for (const ch of IMPERIUM_INTEL) {
+      if (!seen.has(ch.toLowerCase())) {
+        current.push(ch);
+        seen.add(ch.toLowerCase());
+      }
+    }
+    channelsInput.value = current.join(', ');
+    if (typeof window.appendDebug === 'function') {
+      window.appendDebug('INFO', 'Imperium Intel channels added - remember to Save');
+    }
+  });
+}
 
 if (browseBtn && logPathInput) {
   browseBtn.addEventListener('click', async () => {
@@ -39,12 +80,18 @@ if (settingsForm) {
     e.preventDefault();
     if (saveState) saveState.textContent = 'Saving...';
 
+    const soundOn = soundCheckbox ? soundCheckbox.checked : true;
+    const notifOn = notificationCheckbox ? notificationCheckbox.checked : true;
+
     const settings = {
       logPath: logPathInput ? logPathInput.value : '',
       proximityRange: proximityInput ? parseInt(proximityInput.value) || 2 : 2,
       intelChannels: channelsInput ? channelsInput.value : '',
-      soundEnabled: soundCheckbox ? soundCheckbox.checked : true,
-      notificationEnabled: notificationCheckbox ? notificationCheckbox.checked : true,
+      soundEnabled: soundOn,
+      notificationEnabled: notifOn,
+      sound: soundOn,
+      notifications: notifOn,
+      volume: volumeInput ? parseInt(volumeInput.value) || 0 : 50,
       watchList: typeof window.getWatchListData === 'function' ? window.getWatchListData() : []
     };
 

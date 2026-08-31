@@ -1,0 +1,21 @@
+appId: com.mrchi.intel-lite
+productName: MRCHI Intel Lite
+asar: false
+directories:
+  output: dist
+files:
+  - "**/*"
+  - "!static.db"
+  - "!dist/**"
+  - "!diag.js"
+  - "!test-sound.js"
+  - "!extract-eve-data.js"
+win:
+  target:
+    - nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: MRCHI Intel Lite

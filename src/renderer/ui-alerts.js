@@ -1,4 +1,4 @@
-// MIL ui-alerts v3 - single-line alert cards
+// MIL ui-alerts v3 - single-line alert cards into #alerts
 const alertsList = document.getElementById('alerts');
 
 window.addAlert = (data) => {
