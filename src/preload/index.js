@@ -1,8 +1,9 @@
-// MIL preload v2 - adds browseFolder
+// MIL preload v3 - adds getCharacters
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   getState: () => ipcRenderer.invoke('get-state'),
+  getCharacters: () => ipcRenderer.invoke('get-characters'),
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
   saveConfig: (config) => ipcRenderer.invoke('save-config', config),

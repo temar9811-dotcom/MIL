@@ -1,4 +1,4 @@
-// MIL renderer v2 - sound handled in main process
+// MIL renderer v3 - restores alert history at startup
 const statusEl = document.getElementById('engine-status');
 
 const STATUS_STYLES = {
@@ -41,6 +41,9 @@ async function init() {
   try {
     const state = await window.electronAPI.getState();
     applyEngineState(state);
+    if (state && Array.isArray(state.recents) && typeof window.renderAlertHistory === 'function') {
+      window.renderAlertHistory(state.recents);
+    }
   } catch (err) {
     appendDebugSafe('WARN', `getState not available: ${err.message}`);
   }

@@ -1,4 +1,7 @@
-// MIL engine v5 - volume applied from settings
+// MIL engine v6 - alert history persistence
+const { app } = require('electron');
+const path = require('path');
+const fs = require('fs');
 const { ChatLogWatcher } = require('./watcher');
 const { CharacterRegistry } = require('./registry');
 const { IntelData } = require('../intel/data');
@@ -32,10 +35,34 @@ class Engine {
     return { onMessage: (msg) => this.handleMessage(msg) };
   }
 
+  alertHistoryPath() {
+    return path.join(app.getPath('userData'), 'alerts.json');
+  }
+
+  loadAlertHistory() {
+    try {
+      const p = this.alertHistoryPath();
+      if (fs.existsSync(p)) {
+        const list = JSON.parse(fs.readFileSync(p, 'utf8'));
+        if (Array.isArray(list)) this.recentAlerts = list.slice(0, 50);
+      }
+    } catch (_) { /* corrupt history ignored */ }
+    if (this.recentAlerts.length) {
+      this.log.info(`Restored ${this.recentAlerts.length} alerts from history`);
+    }
+  }
+
+  saveAlertHistory() {
+    try {
+      fs.writeFileSync(this.alertHistoryPath(), JSON.stringify(this.recentAlerts, null, 2));
+    } catch (_) { /* never crash on saving */ }
+  }
+
   start(config) {
     this.config = config;
     this.alerts.setConfig(config);
     this.applySoundConfig(config);
+    this.loadAlertHistory();
     this.running = true;
     this.watcher.start(config, this.handlers(), this.registry);
     this.log.info('Engine started');
@@ -83,7 +110,9 @@ class Engine {
 
   fireAlert(alert) {
     this.recentAlerts.unshift(alert);
-    this.recentAlerts = this.recentAlerts.slice(0, 20);
+    this.recentAlerts = this.recentAlerts.slice(0, 50);
+    this.saveAlertHistory();
+
     const shipPart = alert.ship ? ` in a ${alert.ship}` : '';
     this.log.alert(
       `${alert.type.toUpperCase()} ${alert.character} ${alert.jumps}j ${alert.pilot}${shipPart}`,

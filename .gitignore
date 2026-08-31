@@ -136,3 +136,5 @@ dist
 .pnp.*
 static.db 
 dist/ 
+static.db 
+dist/ 

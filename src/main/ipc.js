@@ -1,4 +1,4 @@
-// MIL ipc v2 - adds browse-folder dialog
+// MIL ipc v3 - adds get-characters
 const { ipcMain, app, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -11,6 +11,17 @@ function registerIpc(configApi, engine, log) {
     recents: engine.getRecentAlerts ? engine.getRecentAlerts() : [],
     running: engine.isRunning(),
   }));
+
+  ipcMain.handle('get-characters', () => {
+    const list = engine.getCharacters ? engine.getCharacters() : [];
+    return list.map((c) => ({
+      name: c.name,
+      system: c.system || null,
+      online: !!c.online,
+      lastSeen: c.lastSeen || null,
+      channels: c.channels ? [...c.channels] : [],
+    }));
+  });
 
   ipcMain.handle('save-config', (_, newConfig) => {
     configApi.updateConfig(newConfig);
