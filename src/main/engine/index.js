@@ -1,4 +1,4 @@
-// MIL engine v7 - per-sound volume + custom wavs from settings
+// MIL engine v18 - slim engine, pyramid delegated
 const { app } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -9,8 +9,10 @@ const { IntelParser } = require('../intel/parser');
 const { IntelTracker } = require('../intel/tracker');
 const { Alerts } = require('../intel/alerts');
 const { TimeFilter } = require('../intel/timeFilter');
+const { PyramidFeed } = require('./pyramid');
 const { SoundPlayer } = require('../sounds');
 const { NotificationSender } = require('../notifications');
+const { WindowPresence } = require('../windowpresence');
 
 class Engine {
   constructor(log) {
@@ -19,6 +21,7 @@ class Engine {
     this.running = false;
     this.recentAlerts = [];
     this.onAlert = null;
+    this.seenMessages = new Map();
 
     this.registry = new CharacterRegistry(log);
     this.watcher = new ChatLogWatcher(log);
@@ -29,6 +32,8 @@ class Engine {
     this.timeFilter = new TimeFilter();
     this.sounds = new SoundPlayer(log);
     this.notifications = new NotificationSender(log);
+    this.windowPresence = new WindowPresence(log, this.registry);
+    this.pyramid = new PyramidFeed(this);
   }
 
   handlers() {
@@ -58,6 +63,19 @@ class Engine {
     } catch (_) { /* never crash on saving */ }
   }
 
+  clearAlerts() {
+    this.recentAlerts = [];
+    this.saveAlertHistory();
+    this.log.info('Alert history cleared');
+  }
+
+  applyPresenceConfig(config) {
+    const useWindows = (config.presenceSource || 'window') === 'window';
+    this.watcher.setPresenceMode(!useWindows);
+    if (useWindows) this.windowPresence.start();
+    else this.windowPresence.stop();
+  }
+
   start(config) {
     this.config = config;
     this.alerts.setConfig(config);
@@ -65,6 +83,7 @@ class Engine {
     this.loadAlertHistory();
     this.running = true;
     this.watcher.start(config, this.handlers(), this.registry);
+    this.applyPresenceConfig(config);
     this.log.info('Engine started');
   }
 
@@ -90,12 +109,26 @@ class Engine {
     return this.intelChannels().includes(String(channel || '').trim().toLowerCase());
   }
 
+  isDuplicate(msg) {
+    const key = [msg.channelName, msg.timestamp, msg.author, msg.message].join('|');
+    const now = Date.now();
+    if (this.seenMessages.has(key)) return true;
+    this.seenMessages.set(key, now);
+    if (this.seenMessages.size > 5000) {
+      for (const [k, t] of this.seenMessages) {
+        if (now - t > 120000) this.seenMessages.delete(k);
+      }
+    }
+    return false;
+  }
+
   handleMessage(msg) {
     const channel = String(msg.channelName || '').trim().toLowerCase();
     if (channel === 'local') return;
     if (!this.isIntelChannel(channel)) return;
     if (msg.author === 'EVE System') return;
     if (!this.timeFilter.isFresh(msg.timestamp, 5)) return;
+    if (this.isDuplicate(msg)) return;
 
     this.log.parse(`[${msg.channelName}] ${msg.author}: ${msg.message}`);
 
@@ -103,6 +136,7 @@ class Engine {
     for (const event of events) {
       if (event.pilot && this.registry.get(event.pilot)) continue;
       this.tracker.record(event);
+      this.pyramid.recordSystemIntel(event);
       this.log.parse(
         `INTEL pilot=${event.pilot || '?'} count=${event.count || '?'} ` +
         `ship=${event.ship || '?'} system=${event.system || '?'}`,
@@ -128,8 +162,15 @@ class Engine {
     if (this.onAlert) this.onAlert(alert);
   }
 
+  // ---- pyramid proxies ----
+  setPyramid(on) { this.pyramid.setPyramid(on); }
+  clearPyramid() { this.pyramid.clearPyramid(); }
+  getPyramid() { return this.pyramid.getPyramid(); }
+  setPyramidCenter(name) { this.pyramid.setPyramidCenter(name); }
+
   stop() {
     this.watcher.stop();
+    this.windowPresence.stop();
     this.running = false;
     this.log.info('Engine stopped');
   }
@@ -140,6 +181,7 @@ class Engine {
     this.config = config;
     this.alerts.setConfig(config);
     this.applySoundConfig(config);
+    this.applyPresenceConfig(config);
     if (this.running && oldDir !== newDir) {
       this.watcher.start(config, this.handlers(), this.registry);
     }

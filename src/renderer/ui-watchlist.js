@@ -1,4 +1,4 @@
-// MIL ui-watchlist v3 - ignores accidental fully-blank rows on save
+// MIL ui-watchlist v4 - per-row color picker
 const watchListEl = document.getElementById('watch-list');
 const addWatchBtn = document.getElementById('add-watch');
 
@@ -8,6 +8,18 @@ function makeRow(entry) {
   row.style.display = 'flex';
   row.style.gap = '6px';
   row.style.marginBottom = '6px';
+  row.style.alignItems = 'center';
+
+  const color = document.createElement('input');
+  color.type = 'color';
+  color.title = 'Alert color for this entry';
+  color.style.width = '34px';
+  color.style.height = '26px';
+  color.style.padding = '0';
+  color.style.border = 'none';
+  color.style.flex = '0 0 auto';
+  color.style.background = 'transparent';
+  color.value = entry && entry.color ? entry.color : '#facc15';
 
   const pilot = document.createElement('input');
   pilot.type = 'text';
@@ -34,7 +46,7 @@ function makeRow(entry) {
   del.textContent = 'X';
   del.addEventListener('click', () => row.remove());
 
-  row.append(pilot, ship, extra, del);
+  row.append(color, pilot, ship, extra, del);
   return row;
 }
 
@@ -50,12 +62,13 @@ window.getWatchListData = () => {
   const out = [];
   for (const row of rows) {
     const inputs = row.querySelectorAll('input');
-    const pilot = inputs[0].value.trim();
-    const ship = inputs[1].value.trim();
-    const extraRange = parseInt(inputs[2].value, 10) || 0;
+    const color = inputs[0].value || '#facc15';
+    const pilot = inputs[1].value.trim();
+    const ship = inputs[2].value.trim();
+    const extraRange = parseInt(inputs[3].value, 10) || 0;
     // Footgun guard: blank+blank+0 would match everything everywhere - skip it
     if (!pilot && !ship && extraRange === 0) continue;
-    out.push({ pilot, ship, extraRange });
+    out.push({ pilot, ship, extraRange, color });
   }
   return out;
 };

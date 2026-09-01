@@ -1,14 +1,24 @@
-// MIL ui-settings v6 - bigger text toggle
+// MIL ui-settings v13 - primary character selector
 const settingsForm = document.getElementById('settings-form');
 const logPathInput = document.getElementById('log-path') || document.getElementById('logs-dir');
 const proximityInput = document.getElementById('proximity-range');
 const channelsInput = document.getElementById('intel-channels') || document.getElementById('channels');
 const soundCheckbox = document.getElementById('sound-enabled') || document.getElementById('sound');
 const notificationCheckbox = document.getElementById('notification-enabled') || document.getElementById('notifications');
+const presenceCheckbox = document.getElementById('presence-windows');
 const saveState = document.getElementById('save-state');
 const browseBtn = document.getElementById('browse-logs');
 const imperiumBtn = document.getElementById('imperium-intel');
 const bigTextCheckbox = document.getElementById('big-text');
+const groupsBox = document.getElementById('group-alerts');
+const intelTimeoutInput = document.getElementById('intel-timeout');
+const primarySelect = document.getElementById('primary-char');
+
+const pingEss = document.getElementById('ping-ess');
+const pingBubble = document.getElementById('ping-bubble');
+const pingDrag = document.getElementById('ping-drag');
+const pingAnsiblex = document.getElementById('ping-ansiblex');
+const pingCamping = document.getElementById('ping-camping');
 
 const volumeRedInput = document.getElementById('volume-red');
 const volumeRedLabel = document.getElementById('volume-red-label');
@@ -26,6 +36,8 @@ const IMPERIUM_INTEL = [
   'southeast.imperium',
   'gem.imperium',
 ];
+
+let loadedGroups = [];
 
 function applyBigText(on) {
   const panel = document.getElementById('settings-panel');
@@ -45,6 +57,103 @@ function updateVolumeLabels() {
   if (volumeSoftLabel && volumeSoftInput) volumeSoftLabel.textContent = `${volumeSoftInput.value}%`;
 }
 
+async function renderPrimaryChar(settings) {
+  if (!primarySelect || !window.electronAPI || !window.electronAPI.getCharacters) return;
+  let chars = [];
+  try {
+    chars = await window.electronAPI.getCharacters();
+  } catch (_) { return; }
+  primarySelect.innerHTML = '';
+  const auto = document.createElement('option');
+  auto.value = '';
+  auto.textContent = 'Auto (first online)';
+  primarySelect.appendChild(auto);
+  for (const c of chars) {
+    const o = document.createElement('option');
+    o.value = c.name;
+    o.textContent = c.name;
+    primarySelect.appendChild(o);
+  }
+  primarySelect.value = settings.primaryChar || '';
+}
+
+async function renderGroups(settings) {
+  if (!groupsBox || !window.electronAPI || !window.electronAPI.getGroups) return;
+  try {
+    loadedGroups = await window.electronAPI.getGroups();
+  } catch (_) { return; }
+  const ga = (settings && settings.groupAlerts) || {};
+  groupsBox.innerHTML = '';
+  for (const g of loadedGroups) {
+    const entry = ga[g.id] || {};
+
+    const row = document.createElement('div');
+    row.style.marginBottom = '10px';
+
+    const line1 = document.createElement('div');
+    line1.style.display = 'flex';
+    line1.style.alignItems = 'center';
+    line1.style.gap = '8px';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.id = `group-${g.id}`;
+    cb.checked = !!entry.enabled;
+
+    const dot = document.createElement('span');
+    dot.style.width = '8px';
+    dot.style.height = '8px';
+    dot.style.borderRadius = '50%';
+    dot.style.flex = '0 0 auto';
+    dot.style.background = g.color || '#888';
+
+    const label = document.createElement('label');
+    label.htmlFor = cb.id;
+    label.style.flex = '1';
+    label.textContent = g.label;
+
+    line1.append(cb, dot, label);
+
+    const line2 = document.createElement('div');
+    line2.style.display = 'flex';
+    line2.style.alignItems = 'center';
+    line2.style.gap = '8px';
+    line2.style.marginLeft = '24px';
+    line2.style.marginTop = '4px';
+
+    const range = document.createElement('input');
+    range.type = 'number';
+    range.min = '0';
+    range.step = '1';
+    range.style.width = '70px';
+    range.id = `grouprange-${g.id}`;
+    range.value = entry.range != null ? entry.range : 5;
+
+    const unit = document.createElement('span');
+    unit.style.color = '#888';
+    unit.style.fontSize = '0.85em';
+    unit.textContent = 'jumps beyond proximity';
+
+    line2.append(range, unit);
+
+    row.append(line1, line2);
+    groupsBox.appendChild(row);
+  }
+}
+
+function collectGroupAlerts() {
+  const out = {};
+  for (const g of loadedGroups) {
+    const cb = document.getElementById(`group-${g.id}`);
+    const range = document.getElementById(`grouprange-${g.id}`);
+    out[g.id] = {
+      enabled: cb ? cb.checked : false,
+      range: range ? parseInt(range.value, 10) || 0 : 0,
+    };
+  }
+  return out;
+}
+
 window.loadSettings = (settings) => {
   if (!settings) return;
   if (logPathInput) logPathInput.value = settings.logPath || '';
@@ -52,6 +161,15 @@ window.loadSettings = (settings) => {
   if (channelsInput) channelsInput.value = settings.intelChannels || '';
   if (soundCheckbox) soundCheckbox.checked = settings.soundEnabled !== false && settings.sound !== false;
   if (notificationCheckbox) notificationCheckbox.checked = settings.notificationEnabled !== false && settings.notifications !== false;
+  if (presenceCheckbox) presenceCheckbox.checked = (settings.presenceSource || 'window') === 'window';
+  if (intelTimeoutInput) intelTimeoutInput.value = settings.intelTimeout ?? 10;
+
+  const ep = (settings && settings.eventPings) || {};
+  if (pingEss) pingEss.checked = ep.ess !== false;
+  if (pingBubble) pingBubble.checked = ep.bubble !== false;
+  if (pingDrag) pingDrag.checked = ep.drag !== false;
+  if (pingAnsiblex) pingAnsiblex.checked = ep.ansiblex !== false;
+  if (pingCamping) pingCamping.checked = ep.camping !== false;
 
   const legacy = settings.volume == null ? 50 : settings.volume;
   if (volumeRedInput) volumeRedInput.value = settings.volumeRed == null ? legacy : settings.volumeRed;
@@ -62,6 +180,8 @@ window.loadSettings = (settings) => {
   if (softSoundInput) softSoundInput.value = settings.softSoundPath || '';
 
   applyBigText(settings.bigText === true);
+  renderGroups(settings);
+  renderPrimaryChar(settings);
 
   if (settings.watchList && typeof window.renderWatchList === 'function') {
     window.renderWatchList(settings.watchList);
@@ -136,6 +256,17 @@ if (settingsForm) {
       notificationEnabled: notifOn,
       sound: soundOn,
       notifications: notifOn,
+      presenceSource: presenceCheckbox && !presenceCheckbox.checked ? 'logs' : 'window',
+      primaryChar: primarySelect ? primarySelect.value : '',
+      intelTimeout: intelTimeoutInput ? parseInt(intelTimeoutInput.value, 10) || 10 : 10,
+      eventPings: {
+        ess: pingEss ? pingEss.checked : true,
+        bubble: pingBubble ? pingBubble.checked : true,
+        drag: pingDrag ? pingDrag.checked : true,
+        ansiblex: pingAnsiblex ? pingAnsiblex.checked : true,
+        camping: pingCamping ? pingCamping.checked : true,
+      },
+      groupAlerts: collectGroupAlerts(),
       volumeRed: volumeRedInput ? parseInt(volumeRedInput.value) || 0 : 50,
       volumeSoft: volumeSoftInput ? parseInt(volumeSoftInput.value) || 0 : 50,
       volume: volumeRedInput ? parseInt(volumeRedInput.value) || 0 : 50,

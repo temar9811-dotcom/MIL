@@ -1,4 +1,4 @@
-// MIL registry v2 - offline chars tracked too, online gated by activity
+// MIL registry v3 - immediate offline flip when client window closes
 class CharacterRegistry {
   constructor(log) {
     this.log = log;
@@ -51,6 +51,14 @@ class CharacterRegistry {
     if (!entry.online) {
       entry.online = true;
       this.log.watch(`${character} back online`);
+    }
+  }
+
+  setOffline(character) {
+    const entry = this.characters.get(character);
+    if (entry && entry.online) {
+      entry.online = false;
+      this.log.watch(`${entry.name} marked offline (client window closed)`);
     }
   }
 

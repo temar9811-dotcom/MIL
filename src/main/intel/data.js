@@ -1,4 +1,4 @@
-// src/main/intel/data.js
+// MIL data v2 - systemsWithin BFS for the Intel Map
 const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
@@ -21,7 +21,6 @@ class IntelData {
       const sysPath = path.join(this.dataDir(), 'systems.json');
       const raw = JSON.parse(fs.readFileSync(sysPath, 'utf8'));
       const map = raw.systems || raw;
-      
       for (const [name, neighbors] of Object.entries(map)) {
         if (!this.adjacency.has(name)) this.adjacency.set(name, new Set());
         for (const n of neighbors || []) {
@@ -35,7 +34,6 @@ class IntelData {
     } catch (err) {
       this.log.error(`systems.json load failed: ${err.message}`);
     }
-
     try {
       const shipPath = path.join(this.dataDir(), 'ships.json');
       const raw = JSON.parse(fs.readFileSync(shipPath, 'utf8'));
@@ -54,6 +52,28 @@ class IntelData {
       count += neighbors.size;
     }
     return Math.floor(count / 2);
+  }
+
+  systemsWithin(from, maxJumps) {
+    const out = new Map();
+    if (!from || !this.adjacency.has(from)) return out;
+    out.set(from, 0);
+    let frontier = [from];
+    let depth = 0;
+    while (frontier.length && depth < maxJumps) {
+      depth++;
+      const next = [];
+      for (const cur of frontier) {
+        for (const n of this.adjacency.get(cur) || []) {
+          if (!out.has(n)) {
+            out.set(n, depth);
+            next.push(n);
+          }
+        }
+      }
+      frontier = next;
+    }
+    return out;
   }
 
   matchSystem(text) {
@@ -82,20 +102,18 @@ class IntelData {
   jumpsBetween(a, b) {
     if (!a || !b || !this.adjacency.has(a) || !this.adjacency.has(b)) return null;
     if (a === b) return 0;
-    
     const seen = new Set([a]);
     let frontier = [a];
     let depth = 0;
-    
     while (frontier.length && depth < 20) {
       depth++;
       const next = [];
       for (const cur of frontier) {
         for (const n of this.adjacency.get(cur) || []) {
           if (n === b) return depth;
-          if (!seen.has(n)) { 
-            seen.add(n); 
-            next.push(n); 
+          if (!seen.has(n)) {
+            seen.add(n);
+            next.push(n);
           }
         }
       }

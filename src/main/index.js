@@ -1,9 +1,9 @@
-// MIL main v5 - collapsed menu bar (main) / no menu bar (pop-out)
-const { app, BrowserWindow, ipcMain } = require('electron');
+// MIL main v11 - pyramid center selector handler
+const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { DebugLog } = require('./debug');
-const { loadConfig, saveConfig } = require('./config');
+const { loadConfig, saveConfig, SETTINGS_VERSION, SETTINGS_DEFAULTS } = require('./config');
 const { registerIpc } = require('./ipc');
 const { Engine } = require('./engine');
 
@@ -11,12 +11,46 @@ const DEBUG = process.env.DEBUG === '1';
 const log = new DebugLog(DEBUG);
 let mainWindow = null;
 let alertsWindow = null;
+let intelWindow = null;
 let config = null;
 let engine = null;
 let saveTimer = null;
 
 function windowStatePath() {
   return path.join(app.getPath('userData'), 'window-state.json');
+}
+
+function settingsPath() {
+  return path.join(app.getPath('userData'), 'settings.json');
+}
+
+function migrateSettings() {
+  let src = null;
+  try { src = JSON.parse(fs.readFileSync(settingsPath(), 'utf8')); } catch (_) { src = null; }
+  if (!src || typeof src !== 'object') src = {};
+
+  const out = {};
+  for (const [key, def] of Object.entries(SETTINGS_DEFAULTS)) {
+    out[key] = (key in src) ? src[key] : def;
+  }
+  out.settingsVersion = SETTINGS_VERSION;
+
+  const added = Object.keys(SETTINGS_DEFAULTS).filter((k) => !(k in src));
+  const removed = Object.keys(src).filter((k) => !(k in SETTINGS_DEFAULTS));
+  const versionChanged = src.settingsVersion !== SETTINGS_VERSION;
+
+  if (added.length || removed.length || versionChanged) {
+    try {
+      fs.writeFileSync(settingsPath(), JSON.stringify(out, null, 2));
+      log.info(
+        `Settings migrated to v${SETTINGS_VERSION} ` +
+        `(added: ${added.join(', ') || 'none'}; removed: ${removed.join(', ') || 'none'})`,
+      );
+    } catch (err) {
+      log.error(`Settings migration failed: ${err.message}`);
+    }
+  }
+  return out;
 }
 
 function loadWindowState() {
@@ -60,13 +94,16 @@ function createWindow() {
   });
   if (state && state.isMaximized) mainWindow.maximize();
 
-  // Collapse the menu bar: hidden by default, Alt still summons it
   mainWindow.setAutoHideMenuBar(true);
   mainWindow.setMenuBarVisibility(false);
 
   mainWindow.on('move', scheduleSaveWindowState);
   mainWindow.on('resize', scheduleSaveWindowState);
-  mainWindow.on('close', saveWindowState);
+  mainWindow.on('close', () => {
+    saveWindowState();
+    if (alertsWindow) alertsWindow.close();
+    if (intelWindow) intelWindow.close();
+  });
   mainWindow.on('closed', () => { mainWindow = null; });
 
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
@@ -91,12 +128,34 @@ function createAlertsWindow() {
     },
   });
 
-  // No menu bar at all in the pop-out
   alertsWindow.setMenu(null);
-
   alertsWindow.loadFile(path.join(__dirname, '..', 'renderer', 'alerts.html'));
   alertsWindow.on('closed', () => { alertsWindow = null; });
   log.info('Alerts pop-out window opened');
+}
+
+function createIntelWindow() {
+  if (intelWindow) {
+    if (intelWindow.isMinimized()) intelWindow.restore();
+    intelWindow.focus();
+    return;
+  }
+  intelWindow = new BrowserWindow({
+    width: 960,
+    height: 720,
+    title: 'MRCHI Intel Map',
+    alwaysOnTop: true,
+    webPreferences: {
+      preload: path.join(__dirname, '..', 'preload', 'index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  intelWindow.setMenu(null);
+  intelWindow.loadFile(path.join(__dirname, '..', 'renderer', 'pyramid.html'));
+  intelWindow.on('closed', () => { intelWindow = null; });
+  log.info('Intel Map pop-out window opened');
 }
 
 function sendEngineState(state) {
@@ -108,6 +167,8 @@ app.whenReady().then(() => {
   log.info('App ready');
 
   config = loadConfig();
+  config = { ...config, ...migrateSettings() };
+
   engine = new Engine(log);
 
   registerIpc(
@@ -124,8 +185,44 @@ app.whenReady().then(() => {
     return { ok: true };
   });
 
+  ipcMain.handle('open-pyramid', () => {
+    createIntelWindow();
+    return { ok: true };
+  });
+
   ipcMain.handle('set-always-on-top', (_, on) => {
     if (alertsWindow) alertsWindow.setAlwaysOnTop(!!on);
+    return { ok: true };
+  });
+
+  ipcMain.handle('set-pyramid-top', (_, on) => {
+    if (intelWindow) intelWindow.setAlwaysOnTop(!!on);
+    return { ok: true };
+  });
+
+  ipcMain.handle('resize-pyramid', (_, size) => {
+    if (!intelWindow || !size) return { ok: false };
+    const { workArea } = screen.getPrimaryDisplay();
+    const w = Math.max(480, Math.min(Math.round(size.w || 960) + 60, workArea.width - 20));
+    const h = Math.max(360, Math.min(Math.round(size.h || 720) + 120, workArea.height - 20));
+    intelWindow.setSize(w, h);
+    return { ok: true };
+  });
+
+  ipcMain.handle('clear-pyramid', () => {
+    if (engine.clearPyramid) engine.clearPyramid();
+    return { ok: true };
+  });
+
+  ipcMain.handle('set-pyramid-center', (_, name) => {
+    if (engine.setPyramidCenter) engine.setPyramidCenter(name || '');
+    return { ok: true };
+  });
+
+  ipcMain.handle('clear-alerts', () => {
+    if (engine.clearAlerts) engine.clearAlerts();
+    if (mainWindow) mainWindow.webContents.send('alerts-cleared');
+    if (alertsWindow) alertsWindow.webContents.send('alerts-cleared');
     return { ok: true };
   });
 

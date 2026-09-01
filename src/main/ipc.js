@@ -1,7 +1,9 @@
-// MIL ipc v5 - adds browse-wav file picker
+// MIL ipc v8 - pyramid get/set handlers
 const { ipcMain, app, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { SETTINGS_VERSION } = require('./config');
+const { GROUPS } = require('./intel/groups');
 
 function registerIpc(configApi, engine, log) {
   const settingsPath = path.join(app.getPath('userData'), 'settings.json');
@@ -12,6 +14,19 @@ function registerIpc(configApi, engine, log) {
     running: engine.isRunning(),
     version: app.getVersion(),
   }));
+
+  ipcMain.handle('get-groups', () => GROUPS.map((g) => ({
+    id: g.id,
+    label: g.label,
+    color: g.color,
+  })));
+
+  ipcMain.handle('get-pyramid', () => (engine.getPyramid ? engine.getPyramid() : { enabled: false }));
+
+  ipcMain.handle('set-pyramid', (_, on) => {
+    if (engine.setPyramid) engine.setPyramid(!!on);
+    return { ok: true, enabled: !!on };
+  });
 
   ipcMain.handle('get-characters', () => {
     const list = engine.getCharacters ? engine.getCharacters() : [];
@@ -44,6 +59,7 @@ function registerIpc(configApi, engine, log) {
 
   ipcMain.handle('save-settings', async (_, settings) => {
     try {
+      settings.settingsVersion = SETTINGS_VERSION;
       fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
       configApi.updateConfig(settings);
       if (engine.applyConfig) engine.applyConfig(settings);

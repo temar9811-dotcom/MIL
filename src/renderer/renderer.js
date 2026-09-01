@@ -1,4 +1,4 @@
-// MIL renderer v5 - self-contained docked alerts (no ui-alerts dependency)
+// MIL renderer v7 - "N jumps" wording in docked cards
 const statusEl = document.getElementById('engine-status');
 const versionEl = document.getElementById('app-version');
 const dockedAlerts = document.getElementById('alerts');
@@ -32,7 +32,7 @@ function makeAlertCard(data) {
   el.className = `alert alert-${data && data.type === 'red' ? 'red' : 'soft'}`;
   const parts = [
     data.character || '?',
-    `${data.jumps == null ? '?' : data.jumps}`,
+    data.jumps == null ? '?' : `${data.jumps} jumps`,
     data.system || '?',
     data.pilot || '?',
   ];
@@ -43,6 +43,9 @@ function makeAlertCard(data) {
   el.style.whiteSpace = 'nowrap';
   el.style.overflow = 'hidden';
   el.style.textOverflow = 'ellipsis';
+  if (data && data.color) {
+    el.style.borderLeft = `4px solid ${data.color}`;
+  }
   return el;
 }
 

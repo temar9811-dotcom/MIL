@@ -1,9 +1,13 @@
-// MIL watcher v11 - native dir watch on Windows + 30s catch-up sweep
+// MIL watcher v13 - lock retry + intel replay for pyramid backfill
 const { app } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const chokidar = require('chokidar');
 const { TimeFilter } = require('../intel/timeFilter');
+const {
+  isLockError, readNewBytes, readTailBytes, detectEncoding, decodeChunk,
+  readHeaderSync, LOCK_RETRY_MS, MAX_LOCK_RETRIES,
+} = require('./logtail');
 
 const STARTUP_ACTIVE_MS = 20 * 60 * 1000;
 const SWEEP_MS = 30 * 1000;
@@ -24,6 +28,12 @@ class ChatLogWatcher {
     this.chatDir = null;
     this.gameDir = null;
     this.minDateStr = '00000000';
+    this.presenceFromLogs = false;
+  }
+
+  setPresenceMode(fromLogs) {
+    this.presenceFromLogs = !!fromLogs;
+    this.log.info(`Presence source: ${fromLogs ? 'chat logs' : 'EVE windows'}`);
   }
 
   downtimeDateStr() {
@@ -137,46 +147,13 @@ class ChatLogWatcher {
 
   encodingFor(filePath) {
     if (!this.encodings.has(filePath)) {
-      let enc = 'utf8';
-      try {
-        const fd = fs.openSync(filePath, 'r');
-        const b = Buffer.alloc(2);
-        fs.readSync(fd, b, 0, 2, 0);
-        fs.closeSync(fd);
-        if (b[0] === 0xFF && b[1] === 0xFE) enc = 'utf16le';
-      } catch (_) { /* default utf8 */ }
-      this.encodings.set(filePath, enc);
+      this.encodings.set(filePath, detectEncoding(filePath));
     }
     return this.encodings.get(filePath);
   }
 
-  decodeChunk(buf, enc) {
-    const text = enc === 'utf16le' ? buf.toString('utf16le') : buf.toString('utf8');
-    return text.replace(/\uFEFF/g, '');
-  }
-
   readHeader(filePath) {
-    try {
-      const fd = fs.openSync(filePath, 'r');
-      const size = fs.fstatSync(fd).size;
-      const buf = Buffer.alloc(Math.min(8192, size));
-      fs.readSync(fd, buf, 0, buf.length, 0);
-      fs.closeSync(fd);
-      const lines = this.decodeChunk(buf, this.encodingFor(filePath)).split(/\r?\n/);
-      let character = null, channel = null, sessionStart = null;
-      for (const raw of lines) {
-        const line = raw.trim();
-        const cm = line.match(/^Channel Name:\s*(.+)$/i);
-        if (cm) channel = cm[1].trim();
-        const lm = line.match(/^Listener:\s*(.+)$/i);
-        if (lm) character = lm[1].trim();
-        const sm = line.match(/^Session started:\s*(.+)$/i);
-        if (sm) sessionStart = sm[1].trim();
-      }
-      return { character, channel, sessionStart };
-    } catch (_) {
-      return { character: null, channel: null, sessionStart: null };
-    }
+    return readHeaderSync(filePath, this.encodingFor(filePath));
   }
 
   metaFor(filePath, active) {
@@ -195,7 +172,9 @@ class ChatLogWatcher {
     return { character: header.character, channel: header.channel };
   }
 
-  tailFile(filePath, isInitial, type) {
+  // Locked file? wait 750ms and retry (x3), then defer to the 30s sweep.
+  // Offsets only advance on success, so nothing is ever lost.
+  tailFile(filePath, isInitial, type, attempt = 0) {
     let stat;
     try { stat = fs.statSync(filePath); } catch (_) { return; }
 
@@ -208,13 +187,21 @@ class ChatLogWatcher {
     const offset = this.offsets.get(filePath);
     if (stat.size <= offset) return;
 
-    const fd = fs.openSync(filePath, 'r');
-    const buf = Buffer.alloc(stat.size - offset);
-    fs.readSync(fd, buf, 0, buf.length, offset);
-    fs.closeSync(fd);
+    let buf;
+    try {
+      buf = readNewBytes(filePath, offset, stat.size);
+    } catch (err) {
+      if (isLockError(err) && attempt < MAX_LOCK_RETRIES) {
+        setTimeout(() => this.tailFile(filePath, isInitial, type, attempt + 1), LOCK_RETRY_MS);
+      } else if (isLockError(err)) {
+        this.log.warn(`Log locked, deferring to sweep: ${path.basename(filePath)}`);
+      }
+      return;
+    }
     this.offsets.set(filePath, stat.size);
 
-    const active = !isInitial || (Date.now() - stat.mtimeMs) < STARTUP_ACTIVE_MS;
+    const active = this.presenceFromLogs &&
+      (!isInitial || (Date.now() - stat.mtimeMs) < STARTUP_ACTIVE_MS);
     const meta = this.metaFor(filePath, active);
 
     if (type === 'game') {
@@ -224,7 +211,7 @@ class ChatLogWatcher {
       return;
     }
 
-    const text = this.decodeChunk(buf, this.encodingFor(filePath));
+    const text = decodeChunk(buf, this.encodingFor(filePath));
     for (const rawLine of text.split(/\r?\n/)) {
       const msg = this.parseLine(rawLine, filePath, meta);
       if (!msg) continue;
@@ -244,6 +231,33 @@ class ChatLogWatcher {
         this.handlers.onMessage(msg);
       }
     }
+  }
+
+  // Re-read recent tails WITHOUT touching offsets - used for pyramid backfill
+  replayIntel(handler) {
+    if (!this.chatDir || !handler) return 0;
+    let entries = [];
+    try { entries = fs.readdirSync(this.chatDir); } catch (_) { return 0; }
+    let count = 0;
+    for (const file of entries) {
+      if (!file.toLowerCase().endsWith('.txt')) continue;
+      if (this.isOldByName(file)) continue;
+      const filePath = path.join(this.chatDir, file);
+      let stat;
+      try { stat = fs.statSync(filePath); } catch (_) { continue; }
+      if (!this.timeFilter.isAfterDowntime(stat.mtime)) continue;
+      let buf;
+      try { buf = readTailBytes(filePath, 65536); } catch (_) { continue; }
+      const meta = this.metaFor(filePath, false);
+      const text = decodeChunk(buf, this.encodingFor(filePath));
+      for (const rawLine of text.split(/\r?\n/)) {
+        const msg = this.parseLine(rawLine, filePath, meta);
+        if (!msg) continue;
+        handler(msg);
+        count++;
+      }
+    }
+    return count;
   }
 
   parseLine(rawLine, filePath, meta) {

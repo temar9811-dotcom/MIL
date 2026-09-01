@@ -1,9 +1,9 @@
-<!-- MIL index.html v10 -->
+<!-- MIL index.html v19 -->
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
   <title>MRCHI Intel Lite</title>
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -14,9 +14,6 @@
     <label class="debug-label">
       <input type="checkbox" id="debug-toggle" /> Debug
     </label>
-    <label class="debug-label">
-      <input type="checkbox" id="big-text" /> Bigger text
-    </label>
   </header>
 
   <main id="app">
@@ -24,6 +21,9 @@
       <section class="panel" id="settings-panel">
         <h2>Settings</h2>
         <form id="settings-form">
+
+          <div style="margin: 12px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Logs &amp; Channels</div>
+
           <div class="row">
             <label for="log-path">Chat logs folder</label>
             <div style="display: flex; gap: 8px;">
@@ -33,17 +33,62 @@
           </div>
 
           <div class="row">
-            <label for="proximity-range">Proximity range (jumps)</label>
-            <input id="proximity-range" type="number" min="0" step="1" value="2" />
-          </div>
-
-          <div class="row">
             <label for="intel-channels">Intel channels (comma separated)</label>
             <div style="display: flex; gap: 8px;">
               <input id="intel-channels" type="text" style="flex: 1;" placeholder="fareast.imperium" />
               <button id="imperium-intel" type="button">Imperium Intel</button>
             </div>
           </div>
+
+          <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Characters</div>
+
+          <div class="row checks">
+            <label><input id="presence-windows" type="checkbox" checked /> Fetch characters via EVE windows (untick = chat logs)</label>
+          </div>
+
+          <div class="row">
+            <label for="primary-char">Primary character (ties &amp; pyramid apex)</label>
+            <select id="primary-char" style="width: 100%; background: #0b1526; color: #e2e8f0; border: 1px solid #334155; border-radius: 4px; padding: 6px;"></select>
+          </div>
+
+          <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Alerting</div>
+
+          <div class="row">
+            <label for="proximity-range">Proximity range (jumps)</label>
+            <input id="proximity-range" type="number" min="0" step="1" value="2" />
+          </div>
+
+          <div class="row">
+            <label>Event pings (soft alerts for hostile activity)</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin-top: 4px;">
+              <label><input id="ping-ess" type="checkbox" checked /> ESS</label>
+              <label><input id="ping-bubble" type="checkbox" checked /> Bubbles</label>
+              <label><input id="ping-drag" type="checkbox" checked /> Drag</label>
+              <label><input id="ping-ansiblex" type="checkbox" checked /> Ansiblex</label>
+              <label><input id="ping-camping" type="checkbox" checked /> Camping</label>
+            </div>
+          </div>
+
+          <div class="row">
+            <label>Group pings (soft alerts by ship group)</label>
+            <div id="group-alerts" style="display: flex; flex-direction: column; margin-top: 4px;"></div>
+          </div>
+
+          <div class="row">
+            <label for="intel-timeout">Intel Map timeout (minutes)</label>
+            <input id="intel-timeout" type="number" min="1" max="120" step="1" value="10" />
+          </div>
+
+          <div class="row">
+            <label>Soft alerts (watch list)</label>
+            <label style="display: block; color: #4ade80; margin: 4px 0 8px; cursor: default;">
+              Leave pilot or ship blank to match any. Extra range 0 = unlimited, a number limits pings to proximity + that many jumps.
+            </label>
+            <div id="watch-list"></div>
+            <button id="add-watch" type="button">+ Add watch entry</button>
+          </div>
+
+          <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Sounds &amp; Notifications</div>
 
           <div class="row checks">
             <label><input id="sound-enabled" type="checkbox" checked /> Play sound on alert</label>
@@ -82,16 +127,13 @@
             </div>
           </div>
 
-          <div class="row">
-            <label>Soft alerts (watch list)</label>
-            <label style="display: block; color: #4ade80; margin: 4px 0 8px; cursor: default;">
-              Leave pilot or ship blank to match any. Extra range 0 = unlimited, a number limits pings to proximity + that many jumps.
-            </label>
-            <div id="watch-list"></div>
-            <button id="add-watch" type="button">+ Add watch entry</button>
+          <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Appearance</div>
+
+          <div class="row checks">
+            <label><input id="big-text" type="checkbox" /> Bigger text</label>
           </div>
 
-          <div class="row">
+          <div class="row" style="margin-top: 16px;">
             <button id="save" type="submit">Save</button>
             <span id="save-state"></span>
           </div>
@@ -107,7 +149,11 @@
         <section class="panel" id="alerts-panel">
           <div class="debug-header">
             <h2>Alerts</h2>
-            <button id="popout-alerts" type="button">Pop out</button>
+            <div style="display: flex; gap: 6px;">
+              <button id="clear-alerts" type="button">Clear</button>
+              <button id="popout-alerts" type="button">Pop out</button>
+              <button id="open-pyramid" type="button">Map</button>
+            </div>
           </div>
           <div id="alerts" style="min-height: 140px; max-height: 340px; overflow-y: auto;"></div>
         </section>

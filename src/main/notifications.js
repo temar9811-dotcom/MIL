@@ -1,4 +1,4 @@
-// MIL notifications v2 - one-line body: char > range > system > intel
+// MIL notifications v3 - "N jumps" wording
 const { Notification } = require('electron');
 
 class NotificationSender {
@@ -7,24 +7,19 @@ class NotificationSender {
     this.enabled = true;
   }
 
-  setEnabled(enabled) {
-    this.enabled = enabled;
-  }
+  setEnabled(enabled) { this.enabled = enabled; }
 
   send(alert) {
     if (!this.enabled) return;
-
     const shipPart = alert.ship ? ` in a ${alert.ship}` : '';
     const intel = `${alert.pilot || '?'}${shipPart}`;
     const body = [
       alert.character || '?',
-      `${alert.jumps == null ? '?' : alert.jumps}`,
+      alert.jumps == null ? '?' : `${alert.jumps} jumps`,
       alert.system || '?',
       intel,
     ].join(' > ');
-
     const title = alert.type === 'red' ? 'RED Alert' : 'Soft Alert';
-
     try {
       const notif = new Notification({ title, body, silent: true });
       notif.show();

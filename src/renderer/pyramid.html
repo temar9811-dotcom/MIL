@@ -1,0 +1,41 @@
+<!-- MIL pyramid.html v7 -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+  <title>MRCHI Intel Map</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Intel Map</h1>
+    <select id="pyramid-center" style="background: #0b1526; color: #e2e8f0; border: 1px solid #334155; border-radius: 4px; padding: 4px; font-size: 12px;"></select>
+    <button id="pyramid-clear" type="button">Clear</button>
+    <label class="debug-label">
+      <input type="checkbox" id="pyramid-fast" /> Intensive
+    </label>
+    <span id="pyramid-fast-info" style="width: 16px; height: 16px; border-radius: 50%; background: #334155; color: #e2e8f0; font-size: 10px; display: inline-flex; align-items: center; justify-content: center; cursor: help;">i</span>
+    <label class="debug-label">
+      <input type="checkbox" id="pyramid-top" checked /> On top
+    </label>
+    <label class="debug-label">
+      <input type="checkbox" id="pyramid-toggle" /> ON
+    </label>
+  </header>
+
+  <main id="app">
+    <section class="panel">
+      <div id="pyramid-off" style="color: #888; padding: 20px;">
+        Intel Map is OFF — zero tracking, zero load. Flip ON to light it up.
+      </div>
+      <div id="pyramid" style="display: none; overflow-y: auto; max-height: calc(100vh - 90px); padding: 8px;"></div>
+    </section>
+  </main>
+
+  <div id="pyramid-tip" style="display: none; position: fixed; z-index: 10; background: #0b1526; border: 1px solid #334155; color: #e2e8f0; padding: 4px 8px; font-size: 12px; border-radius: 4px; pointer-events: none;"></div>
+
+  <script src="ui-pyramid-render.js"></script>
+  <script src="ui-pyramid.js"></script>
+</body>
+</html>
