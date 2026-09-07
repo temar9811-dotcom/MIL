@@ -1,4 +1,4 @@
-// MIL main v11 - pyramid center selector handler
+// MIL main v12 - pyramid center selector handler + auto-updater
 const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -6,15 +6,18 @@ const { DebugLog } = require('./debug');
 const { loadConfig, saveConfig, SETTINGS_VERSION, SETTINGS_DEFAULTS } = require('./config');
 const { registerIpc } = require('./ipc');
 const { Engine } = require('./engine');
+const { AppUpdater } = require('./updater'); // <-- Added Auto-Updater
 
 const DEBUG = process.env.DEBUG === '1';
 const log = new DebugLog(DEBUG);
+
 let mainWindow = null;
 let alertsWindow = null;
 let intelWindow = null;
 let config = null;
 let engine = null;
 let saveTimer = null;
+let appUpdater = null; // <-- Added Auto-Updater
 
 function windowStatePath() {
   return path.join(app.getPath('userData'), 'window-state.json');
@@ -43,7 +46,7 @@ function migrateSettings() {
     try {
       fs.writeFileSync(settingsPath(), JSON.stringify(out, null, 2));
       log.info(
-        `Settings migrated to v${SETTINGS_VERSION} ` +
+        `Settings migrated to v${SETTINGS_VERSION}` +
         `(added: ${added.join(', ') || 'none'}; removed: ${removed.join(', ') || 'none'})`,
       );
     } catch (err) {
@@ -92,6 +95,7 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
+
   if (state && state.isMaximized) mainWindow.maximize();
 
   mainWindow.setAutoHideMenuBar(true);
@@ -116,6 +120,7 @@ function createAlertsWindow() {
     alertsWindow.focus();
     return;
   }
+
   alertsWindow = new BrowserWindow({
     width: 520,
     height: 640,
@@ -140,6 +145,7 @@ function createIntelWindow() {
     intelWindow.focus();
     return;
   }
+
   intelWindow = new BrowserWindow({
     width: 960,
     height: 720,
@@ -238,6 +244,15 @@ app.whenReady().then(() => {
   createWindow();
   engine.start(config);
   sendEngineState({ running: engine.isRunning() });
+
+  // --- Auto-Updater Initialization ---
+  appUpdater = new AppUpdater(log);
+  appUpdater.checkForUpdates(); // Check immediately on startup
+  
+  // Check for updates every 4 hours in the background
+  setInterval(() => {
+    appUpdater.checkForUpdates();
+  }, 4 * 60 * 60 * 1000);
 });
 
 app.on('window-all-closed', () => {

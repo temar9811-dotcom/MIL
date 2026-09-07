@@ -1,4 +1,4 @@
-// MIL parser v4 - ualx alias + strip alias tokens from pilot extraction
+// MIL parser v5 - URL fallback + asterisk cleanup + ualx alias + strip alias tokens
 const SHIP_ALIASES = {
   cni: 'Caracal Navy Issue',
   eni: 'Exequror Navy Issue',
@@ -23,6 +23,15 @@ const SHIP_ALIASES = {
   huggn: 'Huginn',
   hugin: 'Huginn',
   lokii: 'Loki',
+  carac: 'Caracal',
+  vaga: 'Vagabond',
+  shatl: 'Shuttle',
+  'osp navy': 'Osprey Navy Issue',
+  myrm: 'Myrmidon',
+  domi: 'Dominix',
+  purifieer: 'Purifier',
+  characle: 'Caracal',
+  issus: 'Issue',
 };
 
 const SYSTEM_ALIASES = {
@@ -31,20 +40,17 @@ const SYSTEM_ALIASES = {
   '4nd': '4NDT-W',
   'gm-50': 'GM-50Y',
   'ualx': 'UALX-3',
+  '88-ra': '88A-RA',
+  gplb: 'GPLB-C',
+  shbf: 'SHBF-V',
 };
 
-// Hostile-activity event pings (user-toggleable in settings)
 const EVENT_PINGS = [
-  { id: 'ess', label: 'Hostiles in ESS', color: '#fde047',
-    re: /\b(e{1,2}ss|in\s+ess|towards\s+ess)\b/i },
-  { id: 'bubble', label: 'Bubbles reported', color: '#fb923c',
-    re: /\b(bub+les?|buble)\b/i },
-  { id: 'drag', label: 'Drag bubble', color: '#f97316',
-    re: /\bdrag(ged|ging)?\b/i },
-  { id: 'ansiblex', label: 'Ansiblex activity', color: '#a78bfa',
-    re: /\bansiblex?\b/i },
-  { id: 'camping', label: 'Camping reported', color: '#34d399',
-    re: /\bcamp(ing|ed)?\b|\bgatecamp\b/i },
+  { id: 'ess', label: 'Hostiles in ESS', color: '#fde047', re: /\b(e{1,2}ss|in\s+ess|towards\s+ess)\b/i },
+  { id: 'bubble', label: 'Bubbles reported', color: '#fb923c', re: /\b(bub+les?|buble)\b/i },
+  { id: 'drag', label: 'Drag bubble', color: '#f97316', re: /\bdrag(ged|ging)?\b/i },
+  { id: 'ansiblex', label: 'Ansiblex activity', color: '#a78bfa', re: /\bansiblex?\b/i },
+  { id: 'camping', label: 'Camping reported', color: '#34d399', re: /\bcamp(ing|ed)?\b|\bgatecamp\b/i },
 ];
 
 const IGNORE = new Set([
@@ -68,6 +74,7 @@ const IGNORE = new Set([
   'after', 'before', 'when', 'need', 'backup', 'up', 'halted', 'link',
   'bloodthirsty', 'machinist', 'operator', 'technician', 'scientist', 'drifter',
   'sleepers', 'sleeper', 'drifters',
+  'neuts', 'neutrals', 'rats', 'blues', 'friendlies', 'blop', 'blops', 'grid',
 ]);
 
 class IntelParser {
@@ -105,15 +112,33 @@ class IntelParser {
   parse(msg) {
     const rawText = String(msg.message || '').trim();
     if (!rawText) return null;
+
+    const links = rawText.match(/https?:\/\/\S+/g) || [];
+
     const text = rawText
       .replace(/https?:\/\/\S+/g, ' ')
       .replace(/\*/g, ' ')
-      .replace(/﻿/g, ' ')
-      .replace(/\d+\s*[xх]\s*/gi, ' ');
+      .replace(/\uFEFF/g, ' ')
+      .replace(/\d+\s*[x\u0445]\s*/gi, ' ');
 
     const systems = [];
+    
+    // NEW FALLBACK: Extract system names directly from EVE in-game URL tags
+    // This catches systems even if they have trailing asterisks or are missing from the local DB
+    const urlSystems = rawText.match(/<url=showinfo:5\/\/\d+>([^<]+)<\/url>/gi) || [];
+    for (const urlMatch of urlSystems) {
+      const sysName = urlMatch.match(/>([^<]+)<\/url>/)[1].trim();
+      if (sysName) {
+        // Strip trailing asterisks, dots, and other punctuation
+        const cleanSysName = sysName.replace(/[*.,!?;:]+$/, '');
+        if (cleanSysName && !systems.includes(cleanSysName)) {
+          systems.push(cleanSysName);
+        }
+      }
+    }
+
     for (const name of this.data.systemNames) {
-      if (this.hasWord(text, name)) systems.push(name);
+      if (this.hasWord(text, name) && !systems.includes(name)) systems.push(name);
     }
     for (const [alias, sys] of Object.entries(SYSTEM_ALIASES)) {
       if (this.hasWord(text, alias) && !systems.includes(sys)) systems.push(sys);
@@ -152,6 +177,7 @@ class IntelParser {
       ship: ships[0] || null,
       system: systems[0] || null,
       events,
+      links,
     }));
   }
 
@@ -168,7 +194,9 @@ class IntelParser {
     };
 
     for (const m of text.matchAll(/击杀：\s*([^\s(（,，]+)/g)) push(m[1]);
-    for (const m of text.matchAll(/Kill:\s*([A-Z0-9][\w.'-]*(?:\s+[A-Z0-9][\w.'-]*){0,3})/gi)) {
+    
+    const killRegex = /(?:Kill|Победа|Victoire|Sieg|Victoria|击杀):\s*([A-Z0-9][\w.'-]*(?:\s+[A-Z0-9][\w.'-]*){0,3})/gi;
+    for (const m of text.matchAll(killRegex)) {
       push(m[1].trim());
       const shipInKill = m[0].match(/\(([^)]+)\)/);
       if (shipInKill) {
@@ -179,12 +207,14 @@ class IntelParser {
 
     let work = text;
     work = work.replace(/击杀：[^\s(（,，]+(\s*\(([^)）]*)\))?/g, ' ');
-    work = work.replace(/Kill:[^(]*(\([^)]*\))?/gi, ' ');
+    work = work.replace(/(?:Kill|Победа|Victoire|Sieg|Victoria|击杀):[^(]*(\([^)]*\))?/gi, ' ');
+    
     for (const s of systems) work = this.removeWord(work, s);
     for (const s of ships) work = this.removeWord(work, s);
-    // Strip the shorthand tokens themselves so they can't become "pilots"
+    
     for (const k of Object.keys(SYSTEM_ALIASES)) work = this.removeWord(work, k);
     for (const k of Object.keys(SHIP_ALIASES)) work = this.removeWord(work, k);
+    
     work = work.replace(/\(([^)）]*)\)/g, ' ');
     work = work.replace(/[+＝=]\s?\d+/g, ' ');
     work = work.replace(/\b\d+\s*[+=-]?\b/g, ' ');

@@ -2,8 +2,8 @@
 const fs = require('fs');
 
 const LOCK_CODES = new Set(['EBUSY', 'EPERM', 'EACCES']);
-const LOCK_RETRY_MS = 750;
-const MAX_LOCK_RETRIES = 3;
+const LOCK_RETRY_MS = 50;
+const MAX_LOCK_RETRIES = 10;
 
 function isLockError(err) {
   return !!err && LOCK_CODES.has(err.code);

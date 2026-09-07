@@ -1,4 +1,4 @@
-// MIL watcher v13 - lock retry + intel replay for pyramid backfill
+// MIL watcher v14 - forced polling for Windows game logs + copy-paste filter
 const { app } = require('electron');
 const fs = require('fs');
 const path = require('path');
@@ -10,7 +10,7 @@ const {
 } = require('./logtail');
 
 const STARTUP_ACTIVE_MS = 20 * 60 * 1000;
-const SWEEP_MS = 30 * 1000;
+const SWEEP_MS = 5 * 1000; // Reduced from 30s to 5s for faster fallback recovery
 
 class ChatLogWatcher {
   constructor(log) {
@@ -60,6 +60,7 @@ class ChatLogWatcher {
       return;
     }
     const gameDir = this.resolveGameDir(chatDir);
+
     this.chatDir = chatDir;
     this.gameDir = gameDir;
 
@@ -85,19 +86,22 @@ class ChatLogWatcher {
   }
 
   watchDir(dir, type) {
-    const isWin = process.platform === 'win32';
+    // FIX: Force polling for chat logs. 
+    // Native Windows events (fs.watch) fail when EVE keeps the file open/locked.
+    // Polling checks the file timestamp every 500ms, ensuring <1s latency.
     const w = chokidar.watch(dir, {
       ignoreInitial: true,
       persistent: true,
-      usePolling: !isWin,
-      interval: 2000,
+      usePolling: true, 
+      interval: 500, 
       depth: 0,
-      awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 100 },
+      awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 },
       ignored: (p) => {
         if (!p.toLowerCase().endsWith('.txt')) return false;
         return this.isOldByName(path.basename(p));
       },
     });
+
     w.on('add', (p) => this.tailFile(p, false, type));
     w.on('change', (p) => this.tailFile(p, false, type));
     return w;
@@ -161,7 +165,7 @@ class ChatLogWatcher {
       const h = this.readHeader(filePath);
       this.headers.set(filePath, h);
       this.log.watch(
-        `Header ${path.basename(filePath)}: enc=${this.encodingFor(filePath)} ` +
+        `Header ${path.basename(filePath)}: enc=${this.encodingFor(filePath)}` +
         `listener=${h.character || 'null'} channel=${h.channel || 'null'}`,
       );
       if (this.registry && h.character) {
@@ -172,8 +176,6 @@ class ChatLogWatcher {
     return { character: header.character, channel: header.channel };
   }
 
-  // Locked file? wait 750ms and retry (x3), then defer to the 30s sweep.
-  // Offsets only advance on success, so nothing is ever lost.
   tailFile(filePath, isInitial, type, attempt = 0) {
     let stat;
     try { stat = fs.statSync(filePath); } catch (_) { return; }
@@ -233,7 +235,6 @@ class ChatLogWatcher {
     }
   }
 
-  // Re-read recent tails WITHOUT touching offsets - used for pyramid backfill
   replayIntel(handler) {
     if (!this.chatDir || !handler) return 0;
     let entries = [];
@@ -263,9 +264,17 @@ class ChatLogWatcher {
   parseLine(rawLine, filePath, meta) {
     const line = rawLine.trim();
     if (!line) return null;
+    
+    // Fixed regex escaping that was lost in copy-paste
     const m = line.match(/^\[\s*(\d{4}\.\d{2}\.\d{2}\s+\d{2}:\d{2}:\d{2})\s*\]\s+(.+?)\s+>\s+(.*)$/);
     if (!m) return null;
     const [, stamp, author, message] = m;
+    
+    // Ignore copy-paste spam: if the message contains multiple " > " separators,
+    // it's likely a pasted block of chat from another user.
+    const arrowCount = (message.match(/ > /g) || []).length;
+    if (arrowCount >= 2) return null;
+
     return {
       timestamp: stamp,
       author: author.trim(),

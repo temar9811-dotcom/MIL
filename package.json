@@ -1,11 +1,11 @@
 {
   "name": "mrchi-intel-lite",
-  "version": "1.1.6",
+  "version": "1.1.9-hotfix",
   "description": "EVE Online Intel Alert Tool",
   "main": "src/main/index.js",
   "scripts": {
     "start": "electron .",
-    "start:debug": "set DEBUG=1 && electron .",
+    "start:debug": "set DEBUG=1 & electron .",
     "build": "electron-builder",
     "build:win": "electron-builder --win nsis"
   },
@@ -15,7 +15,8 @@
     "sqlite3": "^6.0.1"
   },
   "dependencies": {
-    "chokidar": "^4.0.3"
+    "chokidar": "^4.0.3",
+    "electron-updater": "^6.8.9"
   },
   "build": {
     "appId": "com.mrchi.intel-lite",
@@ -23,7 +24,7 @@
     "files": [
       "**/*",
       "!static.db",
-      "!dist/**",
+      "!dist/",
       "!diag.js",
       "!test-sound.js",
       "!extract-eve-data.js"
@@ -43,7 +44,12 @@
         "from": "resources",
         "to": "resources"
       }
-    ]
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "temar9811-dotcom",
+      "repo": "MIL"
+    }
   },
   "repository": {
     "type": "git",
