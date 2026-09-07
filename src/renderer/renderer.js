@@ -1,9 +1,10 @@
-// MIL renderer v8 - v7 + debug tab visibility
+// MIL renderer v9 - self-healing: alerts, roster, version, engine state, debug tab
 const statusEl = document.getElementById('engine-status');
 const versionEl = document.getElementById('app-version');
 const dockedAlerts = document.getElementById('alerts');
 const debugTabBtn = document.getElementById('debug-tab-btn');
 const enableDebugCheckbox = document.getElementById('enable-debug');
+const rosterList = document.getElementById('roster-list');
 
 const STATUS_STYLES = {
   running: { bg: '#143a24', fg: '#4ade80', border: '#22c55e' },
@@ -11,7 +12,12 @@ const STATUS_STYLES = {
   stopped: { bg: '#3a1414', fg: '#f87171', border: '#ef4444' },
 };
 
+function appendDebugSafe(level, msg) {
+  if (typeof window.appendDebug === 'function') window.appendDebug(level, msg);
+}
+
 function applyEngineState(data) {
+  if (versionEl && data && data.version) versionEl.textContent = `v${data.version}`;
   if (!statusEl) return;
   let state = 'stopped';
   if (data && typeof data.state === 'string') state = data.state;
@@ -22,10 +28,6 @@ function applyEngineState(data) {
   statusEl.style.background = style.bg;
   statusEl.style.color = style.fg;
   statusEl.style.borderColor = style.border;
-}
-
-function appendDebugSafe(level, msg) {
-  if (typeof window.appendDebug === 'function') window.appendDebug(level, msg);
 }
 
 function updateDebugTabVisibility() {
@@ -62,9 +64,7 @@ function makeAlertCard(data) {
   el.style.whiteSpace = 'nowrap';
   el.style.overflow = 'hidden';
   el.style.textOverflow = 'ellipsis';
-  if (data && data.color) {
-    el.style.borderLeft = `4px solid ${data.color}`;
-  }
+  if (data && data.color) el.style.borderLeft = `4px solid ${data.color}`;
   return el;
 }
 
@@ -84,6 +84,36 @@ function dockedRenderHistory(list) {
   }
 }
 
+function renderRoster(chars) {
+  if (!rosterList) return;
+  rosterList.innerHTML = '';
+  const list = Array.isArray(chars) ? chars : [];
+  if (!list.length) {
+    const li = document.createElement('li');
+    li.className = 'roster-empty';
+    li.textContent = 'No characters detected yet';
+    rosterList.appendChild(li);
+    return;
+  }
+  for (const c of list) {
+    const li = document.createElement('li');
+    li.className = 'roster-item';
+    const name = document.createElement('span');
+    name.className = 'roster-name';
+    name.textContent = c.name || '?';
+    const sys = document.createElement('span');
+    sys.className = 'roster-system';
+    sys.textContent = c.online === false ? 'offline' : (c.system || 'unknown');
+    li.append(name, sys);
+    rosterList.appendChild(li);
+  }
+}
+
+async function refreshRoster() {
+  if (!window.electronAPI || !window.electronAPI.getCharacters) return;
+  try { renderRoster(await window.electronAPI.getCharacters()); } catch (_) { /* not ready */ }
+}
+
 async function init() {
   if (!window.electronAPI) {
     appendDebugSafe('ERROR', 'electronAPI missing - preload not loaded');
@@ -92,22 +122,23 @@ async function init() {
   applyEngineState({ state: 'starting' });
   try {
     const settings = await window.electronAPI.getSettings();
-    if (typeof loadSettings === 'function') loadSettings(settings);
+    if (settings && enableDebugCheckbox) enableDebugCheckbox.checked = settings.enableDebug === true;
+    if (typeof window.loadSettings === 'function') window.loadSettings(settings);
     updateDebugTabVisibility();
     appendDebugSafe('INFO', 'Settings loaded');
   } catch (err) {
+    updateDebugTabVisibility();
     appendDebugSafe('WARN', `Could not load settings: ${err.message}`);
   }
   try {
     const state = await window.electronAPI.getState();
     applyEngineState(state);
-    if (versionEl && state && state.version) {
-      versionEl.textContent = `v${state.version}`;
-    }
-    dockedRenderHistory(state.recents);
+    dockedRenderHistory(state && state.recents);
   } catch (err) {
     appendDebugSafe('WARN', `getState not available: ${err.message}`);
   }
+  refreshRoster();
+  setInterval(refreshRoster, 5000);
 }
 
 init();
