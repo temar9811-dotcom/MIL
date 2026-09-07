@@ -1,7 +1,9 @@
-// MIL renderer v7 - "N jumps" wording in docked cards
+// MIL renderer v8 - v7 + debug tab visibility
 const statusEl = document.getElementById('engine-status');
 const versionEl = document.getElementById('app-version');
 const dockedAlerts = document.getElementById('alerts');
+const debugTabBtn = document.getElementById('debug-tab-btn');
+const enableDebugCheckbox = document.getElementById('enable-debug');
 
 const STATUS_STYLES = {
   running: { bg: '#143a24', fg: '#4ade80', border: '#22c55e' },
@@ -15,7 +17,6 @@ function applyEngineState(data) {
   if (data && typeof data.state === 'string') state = data.state;
   else if (data && data.running === true) state = 'running';
   if (!STATUS_STYLES[state]) state = 'stopped';
-
   const style = STATUS_STYLES[state];
   statusEl.textContent = state === 'starting' ? 'engine: starting…' : `engine: ${state}`;
   statusEl.style.background = style.bg;
@@ -25,6 +26,24 @@ function applyEngineState(data) {
 
 function appendDebugSafe(level, msg) {
   if (typeof window.appendDebug === 'function') window.appendDebug(level, msg);
+}
+
+function updateDebugTabVisibility() {
+  if (!debugTabBtn) return;
+  const on = !!(enableDebugCheckbox && enableDebugCheckbox.checked);
+  debugTabBtn.classList.toggle('hidden', !on);
+  if (!on && debugTabBtn.classList.contains('active') && window.uiTabs) {
+    window.uiTabs.show('alerts');
+  }
+}
+
+if (enableDebugCheckbox) {
+  enableDebugCheckbox.addEventListener('change', () => {
+    updateDebugTabVisibility();
+    if (window.electronAPI && typeof window.electronAPI.setDebug === 'function') {
+      window.electronAPI.setDebug(enableDebugCheckbox.checked).catch(() => {});
+    }
+  });
 }
 
 function makeAlertCard(data) {
@@ -74,6 +93,7 @@ async function init() {
   try {
     const settings = await window.electronAPI.getSettings();
     if (typeof loadSettings === 'function') loadSettings(settings);
+    updateDebugTabVisibility();
     appendDebugSafe('INFO', 'Settings loaded');
   } catch (err) {
     appendDebugSafe('WARN', `Could not load settings: ${err.message}`);

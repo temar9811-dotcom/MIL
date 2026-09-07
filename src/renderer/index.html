@@ -1,179 +1,169 @@
-<!-- MIL index.html v19 -->
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'" />
   <title>MRCHI Intel Lite</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
-    <h1>MRCHI Intel Lite <span id="app-version" style="font-size: 0.55em; color: #888; vertical-align: middle;"></span></h1>
-    <span id="engine-status" class="status">engine: starting…</span>
-    <label class="debug-label">
-      <input type="checkbox" id="debug-toggle" /> Debug
-    </label>
+    <h1>MRCHI Intel Lite <span id="app-version">v0.0.0</span></h1>
+    <div class="header-right">
+      <span id="engine-status" class="status">engine: starting…</span>
+    </div>
   </header>
 
-  <main id="app">
-    <div class="columns">
-      <section class="panel" id="settings-panel">
-        <h2>Settings</h2>
-        <form id="settings-form">
-
-          <div style="margin: 12px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Logs &amp; Channels</div>
-
-          <div class="row">
-            <label for="log-path">Chat logs folder</label>
-            <div style="display: flex; gap: 8px;">
-              <input id="log-path" type="text" style="flex: 1;" placeholder="Documents\EVE\logs\Chatlogs (empty = auto)" />
-              <button id="browse-logs" type="button">Browse…</button>
-            </div>
-          </div>
-
-          <div class="row">
-            <label for="intel-channels">Intel channels (comma separated)</label>
-            <div style="display: flex; gap: 8px;">
-              <input id="intel-channels" type="text" style="flex: 1;" placeholder="fareast.imperium" />
-              <button id="imperium-intel" type="button">Imperium Intel</button>
-            </div>
-          </div>
-
-          <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Characters</div>
-
-          <div class="row checks">
-            <label><input id="presence-windows" type="checkbox" checked /> Fetch characters via EVE windows (untick = chat logs)</label>
-          </div>
-
-          <div class="row">
-            <label for="primary-char">Primary character (ties &amp; pyramid apex)</label>
-            <select id="primary-char" style="width: 100%; background: #0b1526; color: #e2e8f0; border: 1px solid #334155; border-radius: 4px; padding: 6px;"></select>
-          </div>
-
-          <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Alerting</div>
-
-          <div class="row">
-            <label for="proximity-range">Proximity range (jumps)</label>
-            <input id="proximity-range" type="number" min="0" step="1" value="2" />
-          </div>
-
-          <div class="row">
-            <label>Event pings (soft alerts for hostile activity)</label>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin-top: 4px;">
-              <label><input id="ping-ess" type="checkbox" checked /> ESS</label>
-              <label><input id="ping-bubble" type="checkbox" checked /> Bubbles</label>
-              <label><input id="ping-drag" type="checkbox" checked /> Drag</label>
-              <label><input id="ping-ansiblex" type="checkbox" checked /> Ansiblex</label>
-              <label><input id="ping-camping" type="checkbox" checked /> Camping</label>
-            </div>
-          </div>
-
-          <div class="row">
-            <label>Group pings (soft alerts by ship group)</label>
-            <div id="group-alerts" style="display: flex; flex-direction: column; margin-top: 4px;"></div>
-          </div>
-
-          <div class="row">
-            <label for="intel-timeout">Intel Map timeout (minutes)</label>
-            <input id="intel-timeout" type="number" min="1" max="120" step="1" value="10" />
-          </div>
-
-          <div class="row">
-            <label>Soft alerts (watch list)</label>
-            <label style="display: block; color: #4ade80; margin: 4px 0 8px; cursor: default;">
-              Leave pilot or ship blank to match any. Extra range 0 = unlimited, a number limits pings to proximity + that many jumps.
-            </label>
-            <div id="watch-list"></div>
-            <button id="add-watch" type="button">+ Add watch entry</button>
-          </div>
-
-          <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Sounds &amp; Notifications</div>
-
-          <div class="row checks">
-            <label><input id="sound-enabled" type="checkbox" checked /> Play sound on alert</label>
-            <label><input id="notification-enabled" type="checkbox" checked /> Show OS notification</label>
-          </div>
-
-          <div class="row">
-            <label for="volume-red">Red alert volume</label>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <input id="volume-red" type="range" min="0" max="100" step="5" value="50" style="flex: 1;" />
-              <span id="volume-red-label" style="width: 42px;">50%</span>
-            </div>
-          </div>
-
-          <div class="row">
-            <label for="volume-soft">Soft alert volume</label>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <input id="volume-soft" type="range" min="0" max="100" step="5" value="50" style="flex: 1;" />
-              <span id="volume-soft-label" style="width: 42px;">50%</span>
-            </div>
-          </div>
-
-          <div class="row">
-            <label for="alert-sound-path">Red alert sound (.wav)</label>
-            <div style="display: flex; gap: 8px;">
-              <input id="alert-sound-path" type="text" style="flex: 1;" placeholder="built-in alert.wav" />
-              <button id="browse-alert-sound" type="button">Browse…</button>
-            </div>
-          </div>
-
-          <div class="row">
-            <label for="soft-sound-path">Soft alert sound (.wav)</label>
-            <div style="display: flex; gap: 8px;">
-              <input id="soft-sound-path" type="text" style="flex: 1;" placeholder="built-in soft.wav" />
-              <button id="browse-soft-sound" type="button">Browse…</button>
-            </div>
-          </div>
-
-          <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Appearance</div>
-
-          <div class="row checks">
-            <label><input id="big-text" type="checkbox" /> Bigger text</label>
-          </div>
-
-          <div class="row" style="margin-top: 16px;">
-            <button id="save" type="submit">Save</button>
-            <span id="save-state"></span>
-          </div>
-        </form>
-      </section>
-
-      <div class="right-col">
-        <section class="panel" id="roster-panel">
+  <main>
+    <div class="app-layout">
+      <aside class="sidebar">
+        <div class="roster-container">
           <h2>Characters</h2>
-          <div id="roster-list"></div>
-        </section>
+          <ul id="roster-list" class="roster-list">
+            <li class="roster-empty">No characters detected yet</li>
+          </ul>
+        </div>
+      </aside>
 
-        <section class="panel" id="alerts-panel">
-          <div class="debug-header">
-            <h2>Alerts</h2>
-            <div style="display: flex; gap: 6px;">
-              <button id="clear-alerts" type="button">Clear</button>
-              <button id="popout-alerts" type="button">Pop out</button>
-              <button id="open-pyramid" type="button">Map</button>
+      <div class="content-area">
+        <nav class="file-tabs">
+          <button class="tab-btn active" data-tab="alerts">Alerts</button>
+          <button class="tab-btn" data-tab="alert-settings">Alert Settings</button>
+          <button class="tab-btn" data-tab="watch-list">Watch List</button>
+          <button class="tab-btn" data-tab="other-settings">Other Settings</button>
+          <button class="tab-btn hidden" data-tab="debug" id="debug-tab-btn">Debug</button>
+        </nav>
+
+        <section class="tab-content active" data-tab="alerts">
+          <div class="panel full-height">
+            <div class="debug-header">
+              <h2>Active Alerts</h2>
+              <div class="tab-actions">
+                <button id="clear-alerts" type="button">Clear</button>
+                <button id="popout-alerts" type="button">Pop out</button>
+                <button id="open-pyramid" type="button">Map</button>
+              </div>
             </div>
+            <div id="alerts" class="scrollable"></div>
           </div>
-          <div id="alerts" style="min-height: 140px; max-height: 340px; overflow-y: auto;"></div>
         </section>
 
-        <section class="panel">
-          <div class="debug-header">
-            <h2>Debug Log</h2>
-            <button id="clear-debug" type="button">Clear</button>
+        <form id="settings-form">
+          <section class="tab-content" data-tab="alert-settings">
+            <div class="panel scrollable">
+              <h2>Alert Settings</h2>
+              <div class="row">
+                <label for="proximity-range">Proximity range (jumps)</label>
+                <input id="proximity-range" type="number" min="0" step="1" value="2" />
+              </div>
+              <div class="row">
+                <label>Event pings</label>
+                <div class="row checks">
+                  <label><input id="ping-ess" type="checkbox" /> ESS</label>
+                  <label><input id="ping-bubble" type="checkbox" /> Bubbles</label>
+                  <label><input id="ping-drag" type="checkbox" /> Drag</label>
+                  <label><input id="ping-ansiblex" type="checkbox" /> Ansiblex</label>
+                  <label><input id="ping-camping" type="checkbox" /> Camping</label>
+                </div>
+              </div>
+              <div class="row">
+                <label>Group pings</label>
+                <div id="group-alerts"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="tab-content" data-tab="watch-list">
+            <div class="panel scrollable">
+              <h2>Watch List</h2>
+              <div id="watch-list"></div>
+              <div class="row">
+                <button id="add-watch" type="button">+ Add watch entry</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="tab-content" data-tab="other-settings">
+            <div class="panel scrollable" id="settings-panel">
+              <h2>Other Settings</h2>
+              <div class="row">
+                <label for="log-path">Chat logs folder</label>
+                <div class="row checks">
+                  <input id="log-path" type="text" placeholder="empty = auto-detect" />
+                  <button id="browse-logs" type="button">Browse…</button>
+                </div>
+              </div>
+              <div class="row">
+                <label for="intel-channels">Intel channels (comma separated)</label>
+                <div class="row checks">
+                  <input id="intel-channels" type="text" placeholder="e.g. fareast.imperium" />
+                  <button id="imperium-intel" type="button">+ Add Imperium Intel</button>
+                </div>
+              </div>
+              <div class="row checks">
+                <label><input id="presence-windows" type="checkbox" checked /> Use EVE windows</label>
+              </div>
+              <div class="row">
+                <label for="primary-char">Primary character</label>
+                <select id="primary-char"><option value="">Auto (first online)</option></select>
+              </div>
+              <div class="row">
+                <label for="intel-timeout">Auto Map timeout (mins)</label>
+                <input id="intel-timeout" type="number" min="0" step="1" value="10" />
+              </div>
+              <div class="row">
+                <label for="volume-red">Red volume <span id="volume-red-label">50%</span></label>
+                <input id="volume-red" type="range" min="0" max="100" value="50" />
+              </div>
+              <div class="row">
+                <label for="volume-soft">Soft volume <span id="volume-soft-label">50%</span></label>
+                <input id="volume-soft" type="range" min="0" max="100" value="50" />
+              </div>
+              <div class="row">
+                <label>Custom sounds</label>
+                <div class="row checks">
+                  <input id="alert-sound-path" type="text" placeholder="Red alert sound (empty = default)" />
+                  <button id="browse-alert-sound" type="button">Browse…</button>
+                </div>
+                <div class="row checks">
+                  <input id="soft-sound-path" type="text" placeholder="Soft alert sound (empty = default)" />
+                  <button id="browse-soft-sound" type="button">Browse…</button>
+                </div>
+              </div>
+              <div class="row checks">
+                <label><input id="sound" type="checkbox" checked /> Sound</label>
+                <label><input id="notifications" type="checkbox" checked /> Notifications</label>
+                <label><input id="big-text" type="checkbox" /> Bigger text</label>
+                <label><input id="enable-debug" type="checkbox" /> Enable Debug</label>
+              </div>
+              <div class="row">
+                <button id="save" type="submit">Save</button>
+                <span id="save-state"></span>
+              </div>
+            </div>
+          </section>
+        </form>
+
+        <section class="tab-content" data-tab="debug">
+          <div class="panel full-height">
+            <div class="debug-header">
+              <h2>Debug Log</h2>
+              <div class="tab-actions">
+                <button id="clear-debug" type="button">Clear</button>
+              </div>
+            </div>
+            <div id="debug-panel" class="scrollable"></div>
           </div>
-          <pre id="debug-panel"></pre>
         </section>
       </div>
     </div>
   </main>
 
+  <script src="ui-tabs.js"></script>
+  <script src="ui-debug.js"></script>
   <script src="ui-watchlist.js"></script>
   <script src="ui-settings.js"></script>
-  <script src="ui-debug.js"></script>
   <script src="ui-alerts.js"></script>
-  <script src="ui-roster.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

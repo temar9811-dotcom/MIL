@@ -19,6 +19,7 @@ const pingBubble = document.getElementById('ping-bubble');
 const pingDrag = document.getElementById('ping-drag');
 const pingAnsiblex = document.getElementById('ping-ansiblex');
 const pingCamping = document.getElementById('ping-camping');
+const enableDebugCheckbox = document.getElementById('enable-debug');
 
 const volumeRedInput = document.getElementById('volume-red');
 const volumeRedLabel = document.getElementById('volume-red-label');
@@ -40,11 +41,7 @@ const IMPERIUM_INTEL = [
 let loadedGroups = [];
 
 function applyBigText(on) {
-  const panel = document.getElementById('settings-panel');
-  if (panel) {
-    panel.style.zoom = on ? 2 : 1;
-    panel.style.overflowY = on ? 'auto' : '';
-  }
+  document.body.classList.toggle('big-text', !!on);
   if (bigTextCheckbox) bigTextCheckbox.checked = !!on;
 }
 
@@ -179,7 +176,8 @@ window.loadSettings = (settings) => {
   if (alertSoundInput) alertSoundInput.value = settings.alertSoundPath || '';
   if (softSoundInput) softSoundInput.value = settings.softSoundPath || '';
 
-  applyBigText(settings.bigText === true);
+  applyBigText(settings.bigText === true)
+    if (enableDebugCheckbox) enableDebugCheckbox.checked = settings.enableDebug === true;
   renderGroups(settings);
   renderPrimaryChar(settings);
 
@@ -273,6 +271,7 @@ if (settingsForm) {
       alertSoundPath: alertSoundInput ? alertSoundInput.value.trim() : '',
       softSoundPath: softSoundInput ? softSoundInput.value.trim() : '',
       bigText: bigTextCheckbox ? bigTextCheckbox.checked : false,
+          enableDebug: enableDebugCheckbox ? enableDebugCheckbox.checked : false,
       watchList: typeof window.getWatchListData === 'function' ? window.getWatchListData() : []
     };
 
