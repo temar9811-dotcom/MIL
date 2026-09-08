@@ -1,7 +1,6 @@
 // # FILE: src/renderer/renderer.js
-// # VERSION: 9
+// # VERSION: 10
 
-// MIL renderer v9 - improved debug log forwarding
 const statusEl = document.getElementById('engine-status');
 const versionEl = document.getElementById('app-version');
 const dockedAlerts = document.getElementById('alerts');
@@ -27,10 +26,7 @@ function applyEngineState(data) {
 }
 
 function appendDebugSafe(level, msg) {
-  const line = `[${level}] ${msg}`;
-  if (typeof window.appendDebugLine === 'function') {
-    window.appendDebugLine(line);
-  }
+  if (typeof window.appendDebug === 'function') window.appendDebug(level, msg);
 }
 
 function makeAlertCard(data) {
@@ -61,9 +57,6 @@ function dockedAddAlert(data) {
   while (dockedAlerts.children.length > 50) {
     dockedAlerts.removeChild(dockedAlerts.lastChild);
   }
-  
-  // Also log alert to debug panel
-  appendDebugSafe('ALERT', `${data.character || '?'} in ${data.system || '?'} (${data.jumps || '?'} jumps)`);
 }
 
 function dockedRenderHistory(list) {
@@ -82,7 +75,8 @@ async function init() {
   applyEngineState({ state: 'starting' });
   try {
     const settings = await window.electronAPI.getSettings();
-    if (typeof loadSettings === 'function') loadSettings(settings);
+    if (typeof window.loadAlertSettings === 'function') window.loadAlertSettings(settings);
+    if (typeof window.loadOtherSettings === 'function') window.loadOtherSettings(settings);
     appendDebugSafe('INFO', 'Settings loaded');
   } catch (err) {
     appendDebugSafe('WARN', `Could not load settings: ${err.message}`);
@@ -90,15 +84,10 @@ async function init() {
   try {
     const state = await window.electronAPI.getState();
     applyEngineState(state);
-    
-    // Fix: Ignore '0.0.0' and fallback to the known package version
-    if (versionEl) {
-      const v = (state && state.version && state.version !== '0.0.0') ? state.version : '1.1.9-hotfix';
-      versionEl.textContent = `v${v}`;
+    if (versionEl && state && state.version) {
+      versionEl.textContent = `v${state.version}`;
     }
-    
-    dockedRenderHistory(state && state.recents ? state.recents : []);
-    appendDebugSafe('INFO', 'Engine state loaded');
+    dockedRenderHistory(state.recents);
   } catch (err) {
     appendDebugSafe('WARN', `getState not available: ${err.message}`);
   }
@@ -108,15 +97,8 @@ init();
 
 if (window.electronAPI) {
   window.electronAPI.onEngineState(applyEngineState);
-  
-  // Forward all debug logs
   window.electronAPI.onDebugLog((line) => {
-    if (typeof window.appendDebugLine === 'function') {
-      window.appendDebugLine(line);
-    }
+    if (typeof window.appendDebugLine === 'function') window.appendDebugLine(line);
   });
-  
-  window.electronAPI.onAlert((alert) => {
-    dockedAddAlert(alert);
-  });
+  window.electronAPI.onAlert((alert) => dockedAddAlert(alert));
 }

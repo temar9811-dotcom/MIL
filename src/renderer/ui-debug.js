@@ -1,24 +1,15 @@
 // # FILE: src/renderer/ui-debug.js
-// # VERSION: 3
+// # VERSION: 6
 
-// src/renderer/ui-debug.js
 const debugToggle = document.getElementById('debug-toggle');
 const debugPanel = document.getElementById('debug-panel');
 const clearDebugBtn = document.getElementById('clear-debug');
-const debugSection = debugPanel ? debugPanel.closest('section') : null;
 
-function setDebugVisible(visible) {
-  const target = debugSection || debugPanel;
-  if (!target) return;
-  target.style.display = visible ? '' : 'none';
-}
-
+// Removed setDebugVisible - tab system handles visibility via CSS classes
 if (debugToggle) {
-  setDebugVisible(debugToggle.checked);
   debugToggle.addEventListener('change', () => {
     const on = debugToggle.checked;
     if (on && debugPanel) debugPanel.textContent = '';
-    setDebugVisible(on);
     if (window.electronAPI && window.electronAPI.toggleDebug) {
       window.electronAPI.toggleDebug(on);
     }
