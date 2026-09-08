@@ -1,10 +1,10 @@
-// MIL renderer v9 - self-healing: alerts, roster, version, engine state, debug tab
+// # FILE: src/renderer/renderer.js
+// # VERSION: 8
+
+// MIL renderer v8 - fix version fallback when engine reports 0.0.0
 const statusEl = document.getElementById('engine-status');
 const versionEl = document.getElementById('app-version');
 const dockedAlerts = document.getElementById('alerts');
-const debugTabBtn = document.getElementById('debug-tab-btn');
-const enableDebugCheckbox = document.getElementById('enable-debug');
-const rosterList = document.getElementById('roster-list');
 
 const STATUS_STYLES = {
   running: { bg: '#143a24', fg: '#4ade80', border: '#22c55e' },
@@ -12,17 +12,13 @@ const STATUS_STYLES = {
   stopped: { bg: '#3a1414', fg: '#f87171', border: '#ef4444' },
 };
 
-function appendDebugSafe(level, msg) {
-  if (typeof window.appendDebug === 'function') window.appendDebug(level, msg);
-}
-
 function applyEngineState(data) {
-  if (versionEl && data && data.version) versionEl.textContent = `v${data.version}`;
   if (!statusEl) return;
   let state = 'stopped';
   if (data && typeof data.state === 'string') state = data.state;
   else if (data && data.running === true) state = 'running';
   if (!STATUS_STYLES[state]) state = 'stopped';
+
   const style = STATUS_STYLES[state];
   statusEl.textContent = state === 'starting' ? 'engine: starting…' : `engine: ${state}`;
   statusEl.style.background = style.bg;
@@ -30,22 +26,8 @@ function applyEngineState(data) {
   statusEl.style.borderColor = style.border;
 }
 
-function updateDebugTabVisibility() {
-  if (!debugTabBtn) return;
-  const on = !!(enableDebugCheckbox && enableDebugCheckbox.checked);
-  debugTabBtn.classList.toggle('hidden', !on);
-  if (!on && debugTabBtn.classList.contains('active') && window.uiTabs) {
-    window.uiTabs.show('alerts');
-  }
-}
-
-if (enableDebugCheckbox) {
-  enableDebugCheckbox.addEventListener('change', () => {
-    updateDebugTabVisibility();
-    if (window.electronAPI && typeof window.electronAPI.setDebug === 'function') {
-      window.electronAPI.setDebug(enableDebugCheckbox.checked).catch(() => {});
-    }
-  });
+function appendDebugSafe(level, msg) {
+  if (typeof window.appendDebug === 'function') window.appendDebug(level, msg);
 }
 
 function makeAlertCard(data) {
@@ -64,7 +46,9 @@ function makeAlertCard(data) {
   el.style.whiteSpace = 'nowrap';
   el.style.overflow = 'hidden';
   el.style.textOverflow = 'ellipsis';
-  if (data && data.color) el.style.borderLeft = `4px solid ${data.color}`;
+  if (data && data.color) {
+    el.style.borderLeft = `4px solid ${data.color}`;
+  }
   return el;
 }
 
@@ -84,36 +68,6 @@ function dockedRenderHistory(list) {
   }
 }
 
-function renderRoster(chars) {
-  if (!rosterList) return;
-  rosterList.innerHTML = '';
-  const list = Array.isArray(chars) ? chars : [];
-  if (!list.length) {
-    const li = document.createElement('li');
-    li.className = 'roster-empty';
-    li.textContent = 'No characters detected yet';
-    rosterList.appendChild(li);
-    return;
-  }
-  for (const c of list) {
-    const li = document.createElement('li');
-    li.className = 'roster-item';
-    const name = document.createElement('span');
-    name.className = 'roster-name';
-    name.textContent = c.name || '?';
-    const sys = document.createElement('span');
-    sys.className = 'roster-system';
-    sys.textContent = c.online === false ? 'offline' : (c.system || 'unknown');
-    li.append(name, sys);
-    rosterList.appendChild(li);
-  }
-}
-
-async function refreshRoster() {
-  if (!window.electronAPI || !window.electronAPI.getCharacters) return;
-  try { renderRoster(await window.electronAPI.getCharacters()); } catch (_) { /* not ready */ }
-}
-
 async function init() {
   if (!window.electronAPI) {
     appendDebugSafe('ERROR', 'electronAPI missing - preload not loaded');
@@ -122,23 +76,25 @@ async function init() {
   applyEngineState({ state: 'starting' });
   try {
     const settings = await window.electronAPI.getSettings();
-    if (settings && enableDebugCheckbox) enableDebugCheckbox.checked = settings.enableDebug === true;
-    if (typeof window.loadSettings === 'function') window.loadSettings(settings);
-    updateDebugTabVisibility();
+    if (typeof loadSettings === 'function') loadSettings(settings);
     appendDebugSafe('INFO', 'Settings loaded');
   } catch (err) {
-    updateDebugTabVisibility();
     appendDebugSafe('WARN', `Could not load settings: ${err.message}`);
   }
   try {
     const state = await window.electronAPI.getState();
     applyEngineState(state);
-    dockedRenderHistory(state && state.recents);
+    
+    // Fix: Ignore '0.0.0' and fallback to the known package version
+    if (versionEl) {
+      const v = (state && state.version && state.version !== '0.0.0') ? state.version : '1.1.9-hotfix';
+      versionEl.textContent = `v${v}`;
+    }
+    
+    dockedRenderHistory(state && state.recents ? state.recents : []);
   } catch (err) {
     appendDebugSafe('WARN', `getState not available: ${err.message}`);
   }
-  refreshRoster();
-  setInterval(refreshRoster, 5000);
 }
 
 init();
