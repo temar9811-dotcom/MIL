@@ -1,3 +1,5 @@
+# # FILE: electron-builder.yml
+# # VERSION: 2
 appId: com.mrchi.intel-lite
 productName: MRCHI Intel Lite
 asar: false
@@ -19,3 +21,10 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: MRCHI Intel Lite
+# CRITICAL: Add this publish configuration for auto-updater
+publish:
+  provider: github
+  owner: temar9811-dotcom
+  repo: MIL
+  private: false
+  releaseType: release

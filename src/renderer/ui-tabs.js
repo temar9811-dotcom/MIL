@@ -1,6 +1,6 @@
 // # FILE: src/renderer/ui-tabs.js
-// # VERSION: 6
-// MIL ui-tabs v6 - expose updateDebugTabVisibility to window
+// # VERSION: 7
+// MIL ui-tabs v7 - added watch-list tab support
 (function() {
   const tabButtons = document.querySelectorAll('.tab-btn');
   const tabContents = document.querySelectorAll('.tab-content');
@@ -18,6 +18,8 @@
       document.getElementById('alerts-panel').classList.add('active');
     } else if (targetTab === 'alert-settings') {
       document.getElementById('alert-settings-panel').classList.add('active');
+    } else if (targetTab === 'watch-list') {
+      document.getElementById('watch-list-panel').classList.add('active');
     } else if (targetTab === 'other-settings') {
       document.getElementById('other-settings-panel').classList.add('active');
     } else if (targetTab === 'debug') {
@@ -49,6 +51,5 @@
     debugToggle.addEventListener('change', updateDebugTabVisibility);
   }
 
-  // Expose to window so renderer.js can call it after loading settings
   window.updateDebugTabVisibility = updateDebugTabVisibility;
 })();

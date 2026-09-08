@@ -1,5 +1,5 @@
 <!-- # FILE: src/renderer/index.html -->
-<!-- # VERSION: 10 -->
+<!-- # VERSION: 11 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -25,6 +25,7 @@
         <div class="tab-bar">
           <button class="tab-btn active" data-tab="alerts">Alerts</button>
           <button class="tab-btn" data-tab="alert-settings">Alert Settings</button>
+          <button class="tab-btn" data-tab="watch-list">Watch List</button>
           <button class="tab-btn" data-tab="other-settings">Other Settings</button>
           <button class="tab-btn hidden" data-tab="debug" id="debug-tab-btn">Debug Log</button>
         </div>
@@ -38,7 +39,6 @@
               <button id="open-pyramid" type="button">Map</button>
             </div>
           </div>
-          <!-- Removed inline max-height/min-height to allow CSS flex to stretch it -->
           <div id="alerts"></div>
         </div>
 
@@ -90,15 +90,6 @@
               <input id="intel-timeout" type="number" min="1" max="120" step="1" value="10" />
             </div>
 
-            <div class="row">
-              <label>Soft alerts (watch list)</label>
-              <label style="display: block; color: #4ade80; margin: 4px 0 8px; cursor: default;">
-                Leave pilot or ship blank to match any. Extra range 0 = unlimited, a number limits pings to proximity + that many jumps.
-              </label>
-              <div id="watch-list"></div>
-              <button id="add-watch" type="button">+ Add watch entry</button>
-            </div>
-
             <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Sounds &amp; Notifications</div>
 
             <div class="row checks">
@@ -143,6 +134,17 @@
               <span id="save-state"></span>
             </div>
           </form>
+        </div>
+
+        <div class="tab-content" id="watch-list-panel">
+          <div style="margin-bottom: 12px;">
+            <h2 style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #e94560; margin-bottom: 8px;">Watch List</h2>
+            <p style="color: #4ade80; font-size: 0.85em; margin-bottom: 12px;">
+              Soft alerts for specific pilots or ships. Leave pilot or ship blank to match any. Extra range 0 = unlimited, a number limits pings to proximity + that many jumps.
+            </p>
+          </div>
+          <div id="watch-list"></div>
+          <button id="add-watch" type="button" style="margin-top: 12px;">+ Add watch entry</button>
         </div>
 
         <div class="tab-content" id="other-settings-panel">

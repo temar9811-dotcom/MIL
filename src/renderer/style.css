@@ -1,5 +1,5 @@
 /* # FILE: src/renderer/style.css */
-/* # VERSION: 6 */
+/* # VERSION: 7 */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -132,11 +132,10 @@ body.big-text #save-state, body.big-text #save-other-state { font-size: 14px; }
 }
 .watch-row input { width: 100%; }
 
-/* Alerts container - stretches to fill available space */
 #alerts {
   flex: 1;
   overflow-y: auto;
-  min-height: 0; /* Crucial for flex child scrolling */
+  min-height: 0;
 }
 
 .alert-row {
@@ -170,7 +169,6 @@ body.big-text #save-state, body.big-text #save-other-state { font-size: 14px; }
 .lvl-WATCH { color: #c792ea; }
 .lvl-DEBUG { color: #9aa4c7; }
 
-/* Tab bar styles */
 .tab-bar {
   display: flex;
   gap: 4px;
@@ -214,7 +212,7 @@ body.big-text #save-state, body.big-text #save-other-state { font-size: 14px; }
   border-radius: 6px;
   padding: 14px;
   overflow: hidden;
-  min-height: 0; /* Ensure tab content can shrink */
+  min-height: 0;
 }
 
 .tab-content.active {
@@ -227,6 +225,11 @@ body.big-text #save-state, body.big-text #save-other-state { font-size: 14px; }
 }
 
 #alert-settings-panel {
+  flex: 1;
+  overflow-y: auto;
+}
+
+#watch-list-panel {
   flex: 1;
   overflow-y: auto;
 }
