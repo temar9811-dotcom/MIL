@@ -1,15 +1,24 @@
 // # FILE: src/renderer/ui-debug.js
-// # VERSION: 6
+// # VERSION: 7
 
 const debugToggle = document.getElementById('debug-toggle');
 const debugPanel = document.getElementById('debug-panel');
 const clearDebugBtn = document.getElementById('clear-debug');
 
-// Removed setDebugVisible - tab system handles visibility via CSS classes
+// REMOVED setDebugVisible entirely. 
+// The tab system (ui-tabs.js) handles all panel visibility via CSS classes.
+// Inline styles were overriding the tabs and hiding the log.
+
 if (debugToggle) {
   debugToggle.addEventListener('change', () => {
     const on = debugToggle.checked;
-    if (on && debugPanel) debugPanel.textContent = '';
+    
+    // Only clear the log when turning it back on
+    if (on && debugPanel) {
+      debugPanel.textContent = '';
+    }
+    
+    // Just tell the backend to start/stop sending logs
     if (window.electronAPI && window.electronAPI.toggleDebug) {
       window.electronAPI.toggleDebug(on);
     }

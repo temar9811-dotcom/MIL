@@ -1,11 +1,9 @@
 // # FILE: src/renderer/ui-settings-other.js
-// # VERSION: 2
-
+// # VERSION: 3
 const otherSettingsForm = document.getElementById('other-settings-form');
 const presenceCheckbox = document.getElementById('presence-windows');
 const primarySelect = document.getElementById('primary-char');
 const bigTextCheckbox = document.getElementById('big-text');
-const debugToggle = document.getElementById('debug-toggle');
 const saveOtherState = document.getElementById('save-other-state');
 
 function applyBigText(on) {
@@ -39,7 +37,6 @@ window.loadOtherSettings = (settings) => {
   if (!settings) return;
   if (presenceCheckbox) presenceCheckbox.checked = (settings.presenceSource || 'window') === 'window';
   applyBigText(settings.bigText === true);
-  if (debugToggle) debugToggle.checked = settings.enableDebug === true;
   renderPrimaryChar(settings);
 };
 
@@ -48,7 +45,6 @@ window.collectOtherSettings = () => {
     presenceSource: presenceCheckbox && !presenceCheckbox.checked ? 'logs' : 'window',
     primaryChar: primarySelect ? primarySelect.value : '',
     bigText: bigTextCheckbox ? bigTextCheckbox.checked : false,
-    enableDebug: debugToggle ? debugToggle.checked : false,
   };
 };
 
@@ -60,28 +56,19 @@ if (otherSettingsForm) {
   otherSettingsForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (saveOtherState) saveOtherState.textContent = 'Saving...';
-
     const otherSettings = window.collectOtherSettings();
-    
     let existingSettings = {};
     try {
       if (window.electronAPI && window.electronAPI.getSettings) {
         existingSettings = await window.electronAPI.getSettings();
       }
     } catch (_) {}
-
     const settings = { ...existingSettings, ...otherSettings };
-
     try {
       if (!window.electronAPI || !window.electronAPI.saveSettings) {
         throw new Error('electronAPI.saveSettings is not available.');
       }
       await window.electronAPI.saveSettings(settings);
-      
-      if (window.electronAPI && window.electronAPI.toggleDebug) {
-        window.electronAPI.toggleDebug(otherSettings.enableDebug);
-      }
-      
       if (saveOtherState) {
         saveOtherState.textContent = 'Saved!';
         setTimeout(() => { saveOtherState.textContent = ''; }, 2000);

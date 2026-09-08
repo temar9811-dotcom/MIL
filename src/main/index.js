@@ -1,4 +1,6 @@
-// MIL main v12 - pyramid center selector handler + auto-updater
+// # FILE: src/main/index.js
+// # VERSION: 15
+// MIL main v15 - debug logger always enabled
 const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -6,10 +8,10 @@ const { DebugLog } = require('./debug');
 const { loadConfig, saveConfig, SETTINGS_VERSION, SETTINGS_DEFAULTS } = require('./config');
 const { registerIpc } = require('./ipc');
 const { Engine } = require('./engine');
-const { AppUpdater } = require('./updater'); // <-- Added Auto-Updater
+const { AppUpdater } = require('./updater');
 
-const DEBUG = process.env.DEBUG === '1';
-const log = new DebugLog(DEBUG);
+// Always enable debug logging
+const log = new DebugLog(true);
 
 let mainWindow = null;
 let alertsWindow = null;
@@ -17,7 +19,7 @@ let intelWindow = null;
 let config = null;
 let engine = null;
 let saveTimer = null;
-let appUpdater = null; // <-- Added Auto-Updater
+let appUpdater = null;
 
 function windowStatePath() {
   return path.join(app.getPath('userData'), 'window-state.json');
@@ -97,7 +99,6 @@ function createWindow() {
   });
 
   if (state && state.isMaximized) mainWindow.maximize();
-
   mainWindow.setAutoHideMenuBar(true);
   mainWindow.setMenuBarVisibility(false);
 
@@ -120,7 +121,6 @@ function createAlertsWindow() {
     alertsWindow.focus();
     return;
   }
-
   alertsWindow = new BrowserWindow({
     width: 520,
     height: 640,
@@ -132,7 +132,6 @@ function createAlertsWindow() {
       nodeIntegration: false,
     },
   });
-
   alertsWindow.setMenu(null);
   alertsWindow.loadFile(path.join(__dirname, '..', 'renderer', 'alerts.html'));
   alertsWindow.on('closed', () => { alertsWindow = null; });
@@ -145,7 +144,6 @@ function createIntelWindow() {
     intelWindow.focus();
     return;
   }
-
   intelWindow = new BrowserWindow({
     width: 960,
     height: 720,
@@ -157,7 +155,6 @@ function createIntelWindow() {
       nodeIntegration: false,
     },
   });
-
   intelWindow.setMenu(null);
   intelWindow.loadFile(path.join(__dirname, '..', 'renderer', 'pyramid.html'));
   intelWindow.on('closed', () => { intelWindow = null; });
@@ -237,6 +234,7 @@ app.whenReady().then(() => {
     if (alertsWindow) alertsWindow.webContents.send('alert', alert);
   };
 
+  // Register log listener BEFORE creating window
   log.onLog((level, msg, ts) => {
     if (mainWindow) mainWindow.webContents.send('engine-log', `[${level}] ${msg}`);
   });
@@ -247,9 +245,7 @@ app.whenReady().then(() => {
 
   // --- Auto-Updater Initialization ---
   appUpdater = new AppUpdater(log);
-  appUpdater.checkForUpdates(); // Check immediately on startup
-  
-  // Check for updates every 4 hours in the background
+  appUpdater.checkForUpdates();
   setInterval(() => {
     appUpdater.checkForUpdates();
   }, 4 * 60 * 60 * 1000);
