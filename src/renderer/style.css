@@ -1,5 +1,5 @@
 /* # FILE: src/renderer/style.css */
-/* # VERSION: 1 */
+/* # VERSION: 3 */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -43,10 +43,7 @@ main { flex: 1 1 auto; overflow: hidden; padding: 16px; }
 .columns { display: flex; gap: 16px; height: 100%; }
 
 #roster-panel { flex: 0 0 220px; overflow-y: auto; }
-#settings-panel { flex: 0 0 380px; overflow-y: auto; }
-.right-col { flex: 1 1 auto; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-#alerts-panel { flex: 1 1 50%; overflow: hidden; display: flex; flex-direction: column; }
-#debug-panel { flex: 1 1 50%; overflow: hidden; display: flex; flex-direction: column; }
+.right-col { flex: 1 1 auto; display: flex; flex-direction: column; gap: 0; min-width: 0; }
 
 .panel {
   background: #16213e;
@@ -136,26 +133,65 @@ button:hover { background: #1a4a8a; }
 .lvl-WATCH { color: #c792ea; }
 .lvl-DEBUG { color: #9aa4c7; }
 
-/* Add this to the end of style.css */
-.right-col {
+/* Tab bar styles */
+.tab-bar {
   display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #0f3460;
+}
+
+.tab-btn {
+  background: transparent;
+  color: #9aa4c7;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  color: #e0e0e0;
+  background: rgba(15, 52, 96, 0.3);
+}
+
+.tab-btn.active {
+  color: #e94560;
+  border-bottom-color: #e94560;
+}
+
+.tab-content {
+  display: none;
+  flex: 1;
   flex-direction: column;
-  gap: 16px;
-  height: 100%;
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  padding: 14px;
+  overflow: hidden;
+}
+
+.tab-content.active {
+  display: flex;
+}
+
+#settings-panel {
+  flex: 1;
+  overflow-y: auto;
 }
 
 #alerts-panel {
   flex: 1;
-  overflow-y: auto;
-  min-height: 150px;
+  overflow: hidden;
 }
 
-/* The section containing the debug log */
-.right-col > section:last-child {
-  flex: 2;
-  display: flex;
-  flex-direction: column;
-  min-height: 200px;
+#debug-panel-wrapper {
+  flex: 1;
+  overflow: hidden;
 }
 
 .debug-header {
@@ -163,6 +199,7 @@ button:hover { background: #1a4a8a; }
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
+  flex: 0 0 auto;
 }
 
 #debug-panel {

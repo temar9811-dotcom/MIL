@@ -1,37 +1,29 @@
-// File-style tab switching. Buttons and panels match via data-tab.
-(function () {
-  function pairs() {
-    const buttons = Array.from(document.querySelectorAll('.tab-btn'));
-    const panels = Array.from(document.querySelectorAll('.tab-content'));
-    const byKey = new Map(panels.map((p) => [p.dataset.tab, p]));
-    return buttons.map((btn, i) => ({
-      btn,
-      panel: byKey.get(btn.dataset.tab) || panels[i] || null,
-    }));
-  }
+// # FILE: src/renderer/ui-tabs.js
+// # VERSION: 2
 
-  function show(key) {
-    for (const { btn, panel } of pairs()) {
-      const on = (btn.dataset.tab || '') === key;
-      btn.classList.toggle('active', on);
-      if (panel) panel.classList.toggle('active', on);
-    }
-  }
+// MIL ui-tabs v2 - tab switching for settings, alerts, and debug log
+(function() {
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  const tabContents = document.querySelectorAll('.tab-content');
 
-  function init() {
-    const list = pairs();
-    list.forEach(({ btn }) => {
-      btn.addEventListener('click', () => show(btn.dataset.tab));
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetTab = btn.getAttribute('data-tab');
+
+      // Remove active class from all buttons and contents
+      tabButtons.forEach(b => b.classList.remove('active'));
+      tabContents.forEach(c => c.classList.remove('active'));
+
+      // Add active class to clicked button and corresponding content
+      btn.classList.add('active');
+      
+      if (targetTab === 'settings') {
+        document.getElementById('settings-panel').classList.add('active');
+      } else if (targetTab === 'alerts') {
+        document.getElementById('alerts-panel').classList.add('active');
+      } else if (targetTab === 'debug') {
+        document.getElementById('debug-panel-wrapper').classList.add('active');
+      }
     });
-    const start = list.find(({ btn }) => btn.classList.contains('active')) || list[0];
-    if (start) show(start.btn.dataset.tab);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-
-  window.uiTabs = { show };
+  });
 })();
