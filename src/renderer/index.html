@@ -1,5 +1,5 @@
 <!-- # FILE: src/renderer/index.html -->
-<!-- # VERSION: 5 -->
+<!-- # VERSION: 6 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -12,9 +12,6 @@
   <header>
     <h1>MRCHI Intel Lite <span id="app-version" style="font-size: 0.55em; color: #888; vertical-align: middle;">v1.1.9-hotfix</span></h1>
     <span id="engine-status" class="status">engine: starting…</span>
-    <label class="debug-label">
-      <input type="checkbox" id="debug-toggle" /> Debug
-    </label>
   </header>
 
   <main id="app">
@@ -26,14 +23,26 @@
 
       <div class="right-col">
         <div class="tab-bar">
-          <button class="tab-btn active" data-tab="settings">Settings</button>
-          <button class="tab-btn" data-tab="alerts">Alerts</button>
-          <button class="tab-btn" data-tab="debug">Debug Log</button>
+          <button class="tab-btn active" data-tab="alerts">Alerts</button>
+          <button class="tab-btn" data-tab="alert-settings">Alert Settings</button>
+          <button class="tab-btn" data-tab="other-settings">Other Settings</button>
+          <button class="tab-btn" data-tab="debug" id="debug-tab-btn">Debug Log</button>
         </div>
 
-        <div class="tab-content active" id="settings-panel">
-          <form id="settings-form">
+        <div class="tab-content" id="alerts-panel">
+          <div class="debug-header">
+            <h2>Alerts</h2>
+            <div style="display: flex; gap: 6px;">
+              <button id="clear-alerts" type="button">Clear</button>
+              <button id="popout-alerts" type="button">Pop out</button>
+              <button id="open-pyramid" type="button">Map</button>
+            </div>
+          </div>
+          <div id="alerts" style="min-height: 140px; max-height: 340px; overflow-y: auto;"></div>
+        </div>
 
+        <div class="tab-content" id="alert-settings-panel">
+          <form id="settings-form">
             <div style="margin: 12px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Logs &amp; Channels</div>
 
             <div class="row">
@@ -50,17 +59,6 @@
                 <input id="intel-channels" type="text" style="flex: 1;" placeholder="fareast.imperium" />
                 <button id="imperium-intel" type="button">Imperium Intel</button>
               </div>
-            </div>
-
-            <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Characters</div>
-
-            <div class="row checks">
-              <label><input id="presence-windows" type="checkbox" checked /> Fetch characters via EVE windows (untick = chat logs)</label>
-            </div>
-
-            <div class="row">
-              <label for="primary-char">Primary character (ties &amp; pyramid apex)</label>
-              <select id="primary-char" style="width: 100%; background: #0b1526; color: #e2e8f0; border: 1px solid #334155; border-radius: 4px; padding: 6px;"></select>
             </div>
 
             <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Alerting</div>
@@ -139,12 +137,6 @@
               </div>
             </div>
 
-            <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Appearance</div>
-
-            <div class="row checks">
-              <label><input id="big-text" type="checkbox" /> Bigger text</label>
-            </div>
-
             <div class="row" style="margin-top: 16px;">
               <button id="save" type="submit">Save</button>
               <span id="save-state"></span>
@@ -152,16 +144,36 @@
           </form>
         </div>
 
-        <div class="tab-content" id="alerts-panel">
-          <div class="debug-header">
-            <h2>Alerts</h2>
-            <div style="display: flex; gap: 6px;">
-              <button id="clear-alerts" type="button">Clear</button>
-              <button id="popout-alerts" type="button">Pop out</button>
-              <button id="open-pyramid" type="button">Map</button>
+        <div class="tab-content" id="other-settings-panel">
+          <form id="other-settings-form">
+            <div style="margin: 12px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Characters</div>
+
+            <div class="row checks">
+              <label><input id="presence-windows" type="checkbox" checked /> Fetch characters via EVE windows (untick = chat logs)</label>
             </div>
-          </div>
-          <div id="alerts" style="min-height: 140px; max-height: 340px; overflow-y: auto;"></div>
+
+            <div class="row">
+              <label for="primary-char">Primary character (ties &amp; pyramid apex)</label>
+              <select id="primary-char" style="width: 100%; background: #0b1526; color: #e2e8f0; border: 1px solid #334155; border-radius: 4px; padding: 6px;"></select>
+            </div>
+
+            <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Appearance</div>
+
+            <div class="row checks">
+              <label><input id="big-text" type="checkbox" /> Bigger text</label>
+            </div>
+
+            <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Debugging</div>
+
+            <div class="row checks">
+              <label><input type="checkbox" id="debug-toggle" /> Enable debug logging</label>
+            </div>
+
+            <div class="row" style="margin-top: 16px;">
+              <button id="save-other" type="submit">Save</button>
+              <span id="save-other-state"></span>
+            </div>
+          </form>
         </div>
 
         <div class="tab-content" id="debug-panel-wrapper">
