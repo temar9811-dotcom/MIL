@@ -4,13 +4,15 @@ const otherSettingsForm = document.getElementById('other-settings-form');
 const presenceCheckbox = document.getElementById('presence-windows');
 const primarySelect = document.getElementById('primary-char');
 const bigTextCheckbox = document.getElementById('big-text');
+const debugToggle = document.getElementById('debug-toggle');
 const saveOtherState = document.getElementById('save-other-state');
 
+// FIX: Apply 'big-text' class to the body tag instead of a missing panel ID
 function applyBigText(on) {
-  const panel = document.getElementById('settings-panel');
-  if (panel) {
-    panel.style.zoom = on ? 2 : 1;
-    panel.style.overflowY = on ? 'auto' : '';
+  if (on) {
+    document.body.classList.add('big-text');
+  } else {
+    document.body.classList.remove('big-text');
   }
   if (bigTextCheckbox) bigTextCheckbox.checked = !!on;
 }
@@ -36,7 +38,11 @@ async function renderPrimaryChar(settings) {
 window.loadOtherSettings = (settings) => {
   if (!settings) return;
   if (presenceCheckbox) presenceCheckbox.checked = (settings.presenceSource || 'window') === 'window';
+  
+  // Apply big text immediately on load
   applyBigText(settings.bigText === true);
+  
+  if (debugToggle) debugToggle.checked = settings.enableDebug === true;
   renderPrimaryChar(settings);
 };
 
@@ -45,9 +51,11 @@ window.collectOtherSettings = () => {
     presenceSource: presenceCheckbox && !presenceCheckbox.checked ? 'logs' : 'window',
     primaryChar: primarySelect ? primarySelect.value : '',
     bigText: bigTextCheckbox ? bigTextCheckbox.checked : false,
+    enableDebug: debugToggle ? debugToggle.checked : false,
   };
 };
 
+// Instant feedback when clicking the checkbox
 if (bigTextCheckbox) {
   bigTextCheckbox.addEventListener('change', () => applyBigText(bigTextCheckbox.checked));
 }
@@ -69,6 +77,9 @@ if (otherSettingsForm) {
         throw new Error('electronAPI.saveSettings is not available.');
       }
       await window.electronAPI.saveSettings(settings);
+      if (window.electronAPI && window.electronAPI.toggleDebug) {
+        window.electronAPI.toggleDebug(otherSettings.enableDebug);
+      }
       if (saveOtherState) {
         saveOtherState.textContent = 'Saved!';
         setTimeout(() => { saveOtherState.textContent = ''; }, 2000);
