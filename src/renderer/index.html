@@ -1,5 +1,5 @@
 <!-- # FILE: src/renderer/index.html -->
-<!-- # VERSION: 9 -->
+<!-- # VERSION: 10 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -10,7 +10,7 @@
 </head>
 <body>
   <header>
-    <h1>MRCHI Intel Lite <span id="app-version" style="font-size: 0.55em; color: #888; vertical-align: middle;">v1.1.9-hotfix</span></h1>
+    <h1>MRCHI Intel Lite <span id="app-version" style="font-size: 0.55em; color: #888; vertical-align: middle;">v1.2.0-Alpha</span></h1>
     <span id="engine-status" class="status">engine: starting…</span>
   </header>
 
@@ -38,7 +38,8 @@
               <button id="open-pyramid" type="button">Map</button>
             </div>
           </div>
-          <div id="alerts" style="min-height: 140px; max-height: 340px; overflow-y: auto;"></div>
+          <!-- Removed inline max-height/min-height to allow CSS flex to stretch it -->
+          <div id="alerts"></div>
         </div>
 
         <div class="tab-content" id="alert-settings-panel">

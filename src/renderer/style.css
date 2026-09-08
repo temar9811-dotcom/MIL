@@ -1,5 +1,5 @@
 /* # FILE: src/renderer/style.css */
-/* # VERSION: 5 */
+/* # VERSION: 6 */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -132,7 +132,13 @@ body.big-text #save-state, body.big-text #save-other-state { font-size: 14px; }
 }
 .watch-row input { width: 100%; }
 
-#alerts { overflow-y: auto; flex: 1 1 auto; }
+/* Alerts container - stretches to fill available space */
+#alerts {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0; /* Crucial for flex child scrolling */
+}
+
 .alert-row {
   padding: 8px 10px;
   border-radius: 4px;
@@ -208,6 +214,7 @@ body.big-text #save-state, body.big-text #save-other-state { font-size: 14px; }
   border-radius: 6px;
   padding: 14px;
   overflow: hidden;
+  min-height: 0; /* Ensure tab content can shrink */
 }
 
 .tab-content.active {
