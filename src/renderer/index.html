@@ -1,214 +1,97 @@
 <!-- # FILE: src/renderer/index.html -->
-<!-- # VERSION: 15 -->
+<!-- # VERSION: 18 -->
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src https://zkillboard.com https://esi.evetech.net" />
   <title>MRCHI Intel Lite</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="themes.css" />
 </head>
 <body>
   <header>
-    <h1>MRCHI Intel Lite <span id="app-version" style="font-size: 0.55em; color: #888; vertical-align: middle;">v1.2.0-Alpha</span></h1>
+    <h1>MRCHI Intel Lite <span id="app-version" style="font-size:0.55em;color:#888;vertical-align:middle;">v1.2.0-Alpha</span></h1>
     <span id="engine-status" class="status">engine: starting…</span>
   </header>
-
   <main id="app">
     <div class="columns">
-      <section class="panel" id="roster-panel">
-        <h2>Characters</h2>
-        <div id="roster-list"></div>
-      </section>
-
+      <section class="panel" id="roster-panel"><h2>Characters</h2><div id="roster-list"></div></section>
       <div class="right-col">
         <div class="tab-bar">
           <button class="tab-btn active" data-tab="alerts">Alerts</button>
+          <button class="tab-btn" data-tab="zkill">Zkill</button>
           <button class="tab-btn" data-tab="alert-settings">Alert Settings</button>
           <button class="tab-btn" data-tab="watch-list">Watch List</button>
           <button class="tab-btn" data-tab="other-settings">Other Settings</button>
           <button class="tab-btn hidden" data-tab="debug" id="debug-tab-btn">Debug Log</button>
         </div>
-
         <div class="tab-content" id="alerts-panel">
-          <div class="debug-header">
-            <h2>Alerts</h2>
-            <div style="display: flex; gap: 6px;">
-              <button id="clear-alerts" type="button">Clear</button>
-              <button id="popout-alerts" type="button">Pop out</button>
-              <button id="open-pyramid" type="button">Map</button>
-            </div>
-          </div>
+          <div class="debug-header"><h2>Alerts</h2><div style="display:flex;gap:6px;"><button id="clear-alerts" type="button">Clear</button><button id="popout-alerts" type="button">Pop out</button><button id="open-pyramid" type="button">Map</button></div></div>
           <div id="alerts"></div>
         </div>
-
+        <div class="tab-content" id="zkill-panel" style="display:flex;flex-direction:column;padding:12px;">
+          <h2 style="margin:0 0 12px 0;font-size:14px;text-transform:uppercase;letter-spacing:1px;color:#e94560;">Zkill</h2>
+          <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:6px;"><label style="font-size:0.85em;">Range:</label><input id="zkill-range" type="number" min="1" max="20" value="5" style="width:60px;" /></div>
+            <div style="display:flex;align-items:center;gap:6px;"><label style="font-size:0.85em;">Char:</label><select id="zkill-char-filter" style="min-width:140px;"><option value="">All online</option></select></div>
+            <button id="zkill-save" type="button">Save</button><span id="zkill-save-state" style="font-size:0.85em;"></span>
+          </div>
+          <div id="zkill-list" style="flex:1;overflow-y:auto;border:1px solid #334155;border-radius:4px;padding:8px;background:#0b1526;"><p style="color:#888;margin:0;">Loading kills...</p></div>
+        </div>
         <div class="tab-content" id="alert-settings-panel">
           <form id="settings-form">
-            <div style="margin: 12px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Channels</div>
-
-            <div class="row">
-              <label for="intel-channels">Intel channels (comma separated)</label>
-              <div style="display: flex; gap: 8px;">
-                <input id="intel-channels" type="text" style="flex: 1;" placeholder="fareast.imperium" />
-                <button id="imperium-intel" type="button">Imperium Intel</button>
-              </div>
-            </div>
-
-            <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Alerting</div>
-
-            <div class="row">
-              <label for="proximity-range">Proximity range (jumps)</label>
-              <input id="proximity-range" type="number" min="0" step="1" value="2" />
-            </div>
-
-            <div class="row">
-              <label>Event pings (soft alerts for hostile activity)</label>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin-top: 4px;">
-                <label><input id="ping-ess" type="checkbox" checked /> ESS</label>
-                <label><input id="ping-bubble" type="checkbox" checked /> Bubbles</label>
-                <label><input id="ping-drag" type="checkbox" checked /> Drag</label>
-                <label><input id="ping-ansiblex" type="checkbox" checked /> Ansiblex</label>
-                <label><input id="ping-camping" type="checkbox" checked /> Camping</label>
-              </div>
-            </div>
-
-            <div class="row">
-              <label>Group pings (soft alerts by ship group)</label>
-              <div id="group-alerts" style="display: flex; flex-direction: column; margin-top: 4px;"></div>
-            </div>
-
-            <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Sounds &amp; Notifications</div>
-
-            <div class="row checks">
-              <label><input id="sound-enabled" type="checkbox" checked /> Play sound on alert</label>
-              <label><input id="notification-enabled" type="checkbox" checked /> Show OS notification</label>
-            </div>
-
-            <div class="row">
-              <label for="volume-red">Red alert volume</label>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <input id="volume-red" type="range" min="0" max="100" step="5" value="50" style="flex: 1;" />
-                <span id="volume-red-label" style="width: 42px;">50%</span>
-              </div>
-            </div>
-
-            <div class="row">
-              <label for="volume-soft">Soft alert volume</label>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <input id="volume-soft" type="range" min="0" max="100" step="5" value="50" style="flex: 1;" />
-                <span id="volume-soft-label" style="width: 42px;">50%</span>
-              </div>
-            </div>
-
-            <div class="row">
-              <label for="alert-sound-path">Red alert sound (.wav)</label>
-              <div style="display: flex; gap: 8px;">
-                <input id="alert-sound-path" type="text" style="flex: 1;" placeholder="built-in alert.wav" />
-                <button id="browse-alert-sound" type="button">Browse…</button>
-              </div>
-            </div>
-
-            <div class="row">
-              <label for="soft-sound-path">Soft alert sound (.wav)</label>
-              <div style="display: flex; gap: 8px;">
-                <input id="soft-sound-path" type="text" style="flex: 1;" placeholder="built-in soft.wav" />
-                <button id="browse-soft-sound" type="button">Browse…</button>
-              </div>
-            </div>
-
-            <div class="row" style="margin-top: 16px;">
-              <button id="save" type="submit">Save</button>
-              <span id="save-state"></span>
-            </div>
+            <div style="margin:12px 0 6px;color:#f43f5e;font-size:0.75em;letter-spacing:1px;text-transform:uppercase;">Channels</div>
+            <div class="row"><label for="intel-channels">Intel channels</label><div style="display:flex;gap:8px;"><input id="intel-channels" type="text" style="flex:1;" placeholder="fareast.imperium" /><button id="imperium-intel" type="button">Imperium Intel</button></div></div>
+            <div style="margin:14px 0 6px;color:#f43f5e;font-size:0.75em;letter-spacing:1px;text-transform:uppercase;">Alerting</div>
+            <div class="row"><label for="proximity-range">Proximity range (jumps)</label><input id="proximity-range" type="number" min="0" step="1" value="2" /></div>
+            <div class="row"><label>Event pings</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-top:4px;"><label><input id="ping-ess" type="checkbox" checked /> ESS</label><label><input id="ping-bubble" type="checkbox" checked /> Bubbles</label><label><input id="ping-drag" type="checkbox" checked /> Drag</label><label><input id="ping-ansiblex" type="checkbox" checked /> Ansiblex</label><label><input id="ping-camping" type="checkbox" checked /> Camping</label></div></div>
+            <div class="row"><label>Group pings</label><div id="group-alerts" style="display:flex;flex-direction:column;margin-top:4px;"></div></div>
+            <div style="margin:14px 0 6px;color:#f43f5e;font-size:0.75em;letter-spacing:1px;text-transform:uppercase;">Sounds &amp; Notifications</div>
+            <div class="row checks"><label><input id="sound-enabled" type="checkbox" checked /> Play sound on alert</label><label><input id="notification-enabled" type="checkbox" checked /> Show OS notification</label></div>
+            <div class="row"><label for="volume-red">Red alert volume</label><div style="display:flex;align-items:center;gap:8px;"><input id="volume-red" type="range" min="0" max="100" step="5" value="50" style="flex:1;" /><span id="volume-red-label" style="width:42px;">50%</span></div></div>
+            <div class="row"><label for="volume-soft">Soft alert volume</label><div style="display:flex;align-items:center;gap:8px;"><input id="volume-soft" type="range" min="0" max="100" step="5" value="50" style="flex:1;" /><span id="volume-soft-label" style="width:42px;">50%</span></div></div>
+            <div class="row"><label for="alert-sound-path">Red alert sound (.wav)</label><div style="display:flex;gap:8px;"><input id="alert-sound-path" type="text" style="flex:1;" placeholder="built-in alert.wav" /><button id="browse-alert-sound" type="button">Browse…</button></div></div>
+            <div class="row"><label for="soft-sound-path">Soft alert sound (.wav)</label><div style="display:flex;gap:8px;"><input id="soft-sound-path" type="text" style="flex:1;" placeholder="built-in soft.wav" /><button id="browse-soft-sound" type="button">Browse…</button></div></div>
+            <div class="row" style="margin-top:16px;"><button id="save" type="submit">Save</button><span id="save-state"></span></div>
           </form>
         </div>
-
         <div class="tab-content" id="watch-list-panel">
-          <div style="margin-bottom: 12px;">
-            <h2 style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #e94560; margin-bottom: 8px;">Watch List</h2>
-            <p style="color: #4ade80; font-size: 0.85em; margin-bottom: 12px;">
-              Soft alerts for specific pilots or ships. Leave pilot or ship blank to match any. Extra range 0 = unlimited, a number limits pings to proximity + that many jumps.
-            </p>
-          </div>
-          <div id="watch-list"></div>
-          <button id="add-watch" type="button" style="margin-top: 12px;">+ Add watch entry</button>
+          <div style="margin-bottom:12px;"><h2 style="font-size:14px;text-transform:uppercase;letter-spacing:1px;color:#e94560;margin-bottom:8px;">Watch List</h2><p style="color:#4ade80;font-size:0.85em;margin-bottom:12px;">Soft alerts for specific pilots or ships. Leave pilot or ship blank to match any.</p></div>
+          <div id="watch-list"></div><button id="add-watch" type="button" style="margin-top:12px;">+ Add watch entry</button>
         </div>
-
         <div class="tab-content" id="other-settings-panel">
           <form id="other-settings-form">
-            <div style="margin: 12px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Logs</div>
-
-            <div class="row">
-              <label for="log-path">Chat logs folder</label>
-              <div style="display: flex; gap: 8px;">
-                <input id="log-path" type="text" style="flex: 1;" placeholder="Documents\EVE\logs\Chatlogs (empty = auto)" />
-                <button id="browse-logs" type="button">Browse…</button>
-              </div>
-            </div>
-
-            <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Characters</div>
-
-            <div class="row checks">
-              <label><input id="presence-windows" type="checkbox" checked /> Fetch characters via EVE windows (untick = chat logs)</label>
-            </div>
-
-            <div class="row">
-              <label for="primary-char">Primary character (ties &amp; pyramid apex)</label>
-              <select id="primary-char" style="width: 100%; background: #0b1526; color: #e2e8f0; border: 1px solid #334155; border-radius: 4px; padding: 6px;"></select>
-            </div>
-
-            <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Appearance</div>
-
-            <div class="row checks">
-              <label><input id="big-text" type="checkbox" /> Bigger text</label>
-            </div>
-
-            <div class="row">
-              <label for="theme-select">Theme</label>
-              <select id="theme-select" style="width: 100%; background: #0b1526; color: #e2e8f0; border: 1px solid #334155; border-radius: 4px; padding: 6px;">
-                <option value="kick-mrchi">Kick MRCHI (Default)</option>
-                <option value="standout">Standout (High Contrast)</option>
-                <option value="lonely-night">Lonely Night (Dark Mode)</option>
-                <option value="shine-bright">Shine Bright (Bright Mode)</option>
-              </select>
-            </div>
-
-            <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Window</div>
-
-            <div class="row checks">
-              <label><input id="minimize-to-tray" type="checkbox" checked /> Minimize to tray</label>
-            </div>
-
-            <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Debugging</div>
-
-            <div class="row checks">
-              <label><input type="checkbox" id="debug-toggle" /> Enable debug logging</label>
-            </div>
-
-            <div class="row" style="margin-top: 16px;">
-              <button id="save-other" type="submit">Save</button>
-              <span id="save-other-state"></span>
-            </div>
+            <div style="margin:12px 0 6px;color:#f43f5e;font-size:0.75em;letter-spacing:1px;text-transform:uppercase;">Logs</div>
+            <div class="row"><label for="log-path">Chat logs folder</label><div style="display:flex;gap:8px;"><input id="log-path" type="text" style="flex:1;" placeholder="Documents\EVE\logs\Chatlogs" /><button id="browse-logs" type="button">Browse…</button></div></div>
+            <div style="margin:14px 0 6px;color:#f43f5e;font-size:0.75em;letter-spacing:1px;text-transform:uppercase;">Characters</div>
+            <div class="row checks"><label><input id="presence-windows" type="checkbox" checked /> Fetch characters via EVE windows</label></div>
+            <div class="row"><label for="primary-char">Primary character</label><select id="primary-char" style="width:100%;"></select></div>
+            <div style="margin:14px 0 6px;color:#f43f5e;font-size:0.75em;letter-spacing:1px;text-transform:uppercase;">Appearance</div>
+            <div class="row checks"><label><input id="big-text" type="checkbox" /> Bigger text</label></div>
+            <div class="row"><label for="theme-select">Theme</label><select id="theme-select" style="width:100%;"><option value="kick-mrchi">Kick MRCHI</option><option value="standout">Standout</option><option value="lonely-night">Lonely Night</option><option value="shine-bright">Shine Bright</option></select></div>
+            <div style="margin:14px 0 6px;color:#f43f5e;font-size:0.75em;letter-spacing:1px;text-transform:uppercase;">Window</div>
+            <div class="row checks"><label><input id="minimize-to-tray" type="checkbox" checked /> Minimize to tray</label></div>
+            <div style="margin:14px 0 6px;color:#f43f5e;font-size:0.75em;letter-spacing:1px;text-transform:uppercase;">Debugging</div>
+            <div class="row checks"><label><input type="checkbox" id="debug-toggle" /> Enable debug logging</label></div>
+            <div class="row" style="margin-top:16px;"><button id="save-other" type="submit">Save</button><span id="save-other-state"></span></div>
           </form>
         </div>
-
         <div class="tab-content" id="debug-panel-wrapper">
-          <div class="debug-header">
-            <h2>Debug Log</h2>
-            <button id="clear-debug" type="button">Clear</button>
-          </div>
+          <div class="debug-header"><h2>Debug Log</h2><button id="clear-debug" type="button">Clear</button></div>
           <pre id="debug-panel"></pre>
         </div>
       </div>
     </div>
   </main>
-
   <script src="ui-watchlist.js"></script>
   <script src="ui-settings-groups.js"></script>
   <script src="ui-settings-alerts.js"></script>
   <script src="ui-settings-other.js"></script>
   <script src="ui-debug.js"></script>
+  <script src="zkill-data.js"></script>
+  <script src="zkill-api.js"></script>
+  <script src="ui-zkill.js"></script>
   <script src="ui-alerts.js"></script>
   <script src="ui-roster.js"></script>
   <script src="ui-tabs.js"></script>

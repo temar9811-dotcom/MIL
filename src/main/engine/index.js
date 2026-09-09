@@ -1,4 +1,6 @@
-// MIL engine v18 - slim engine, pyramid delegated
+// # FILE: src/main/index.js
+// # VERSION: 19
+
 const { app } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -22,7 +24,6 @@ class Engine {
     this.recentAlerts = [];
     this.onAlert = null;
     this.seenMessages = new Map();
-
     this.registry = new CharacterRegistry(log);
     this.watcher = new ChatLogWatcher(log);
     this.data = new IntelData(log);
@@ -92,7 +93,6 @@ class Engine {
     const notifEnabled = config.notificationEnabled !== false && config.notifications !== false;
     this.sounds.setEnabled(soundEnabled);
     this.notifications.setEnabled(notifEnabled);
-
     const legacy = config.volume == null ? 50 : config.volume;
     const red = config.volumeRed == null ? legacy : config.volumeRed;
     const soft = config.volumeSoft == null ? legacy : config.volumeSoft;
@@ -129,9 +129,7 @@ class Engine {
     if (msg.author === 'EVE System') return;
     if (!this.timeFilter.isFresh(msg.timestamp, 5)) return;
     if (this.isDuplicate(msg)) return;
-
     this.log.parse(`[${msg.channelName}] ${msg.author}: ${msg.message}`);
-
     const events = this.parser.parse(msg) || [];
     for (const event of events) {
       if (event.pilot && this.registry.get(event.pilot)) continue;
@@ -146,23 +144,38 @@ class Engine {
     }
   }
 
+  processZkillKill(kill) {
+    if (!kill || !kill.system || kill.system === 'Unknown') return;
+    const event = {
+      pilot: kill.victim || null,
+      ship: null,
+      system: kill.system,
+      events: [],
+      count: kill.attackers || null,
+      timestamp: kill.time,
+      channel: 'zkill',
+    };
+    const alert = this.alerts.evaluate(event);
+    if (alert) {
+      alert.source = 'zkill';
+      alert.url = kill.url;
+      this.fireAlert(alert);
+    }
+  }
+
   fireAlert(alert) {
     this.recentAlerts.unshift(alert);
     this.recentAlerts = this.recentAlerts.slice(0, 50);
     this.saveAlertHistory();
-
     const shipPart = alert.ship ? ` in a ${alert.ship}` : '';
     this.log.alert(
       `${alert.type.toUpperCase()} ${alert.character} ${alert.jumps}j ${alert.pilot}${shipPart}`,
     );
-
     this.sounds.play(alert.type);
     this.notifications.send(alert);
-
     if (this.onAlert) this.onAlert(alert);
   }
 
-  // ---- pyramid proxies ----
   setPyramid(on) { this.pyramid.setPyramid(on); }
   clearPyramid() { this.pyramid.clearPyramid(); }
   getPyramid() { return this.pyramid.getPyramid(); }

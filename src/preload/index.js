@@ -1,4 +1,6 @@
-// MIL preload v12 - pyramid center selector API
+// # FILE: src/preload/index.js
+// # VERSION: 14
+
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -12,6 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   clearPyramid: () => ipcRenderer.invoke('clear-pyramid'),
   setPyramidCenter: (name) => ipcRenderer.invoke('set-pyramid-center', name),
   getCharacters: () => ipcRenderer.invoke('get-characters'),
+  getSystemsAdjacency: () => ipcRenderer.invoke('get-systems-adjacency'),
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
   saveConfig: (config) => ipcRenderer.invoke('save-config', config),
@@ -20,6 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   popoutAlerts: () => ipcRenderer.invoke('popout-alerts'),
   clearAlerts: () => ipcRenderer.invoke('clear-alerts'),
   setAlwaysOnTop: (on) => ipcRenderer.invoke('set-always-on-top'),
+  processZkillKill: (kill) => ipcRenderer.invoke('process-zkill-kill', kill),
   onAlert: (cb) => ipcRenderer.on('alert', (event, data) => cb(data)),
   onAlertsCleared: (cb) => ipcRenderer.on('alerts-cleared', () => cb()),
   onEngineLog: (cb) => ipcRenderer.on('engine-log', (event, line) => cb(line)),

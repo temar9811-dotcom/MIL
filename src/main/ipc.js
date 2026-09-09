@@ -1,4 +1,6 @@
-// MIL ipc v8 - pyramid get/set handlers
+// # FILE: src/main/ipc.js
+// # VERSION: 10
+
 const { ipcMain, app, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -37,6 +39,29 @@ function registerIpc(configApi, engine, log) {
       lastSeen: c.lastSeen || null,
       channels: c.channels ? [...c.channels] : [],
     }));
+  });
+
+  ipcMain.handle('get-systems-adjacency', () => {
+    try {
+      const sysPath = path.join(app.getAppPath(), 'resources', 'data', 'systems.json');
+      const raw = JSON.parse(fs.readFileSync(sysPath, 'utf8'));
+      return raw.systems || raw;
+    } catch (err) {
+      log.error(`Failed to load systems adjacency: ${err.message}`);
+      return {};
+    }
+  });
+
+  ipcMain.handle('process-zkill-kill', async (event, killData) => {
+    try {
+      if (engine.processZkillKill) {
+        engine.processZkillKill(killData);
+      }
+      return { ok: true };
+    } catch (err) {
+      log.error(`Zkill kill processing failed: ${err.message}`);
+      return { ok: false, error: err.message };
+    }
   });
 
   ipcMain.handle('save-config', (_, newConfig) => {

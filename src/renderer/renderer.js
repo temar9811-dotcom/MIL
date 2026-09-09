@@ -78,6 +78,7 @@ async function init() {
     const settings = await window.electronAPI.getSettings();
     if (typeof window.loadAlertSettings === 'function') window.loadAlertSettings(settings);
     if (typeof window.loadOtherSettings === 'function') window.loadOtherSettings(settings);
+    if (typeof window.loadZkillSettings === 'function') window.loadZkillSettings(settings);
     if (typeof window.updateDebugTabVisibility === 'function') {
       window.updateDebugTabVisibility();
     }
