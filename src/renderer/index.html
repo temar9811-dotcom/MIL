@@ -1,5 +1,5 @@
 <!-- # FILE: src/renderer/index.html -->
-<!-- # VERSION: 11 -->
+<!-- # VERSION: 12 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -44,15 +44,7 @@
 
         <div class="tab-content" id="alert-settings-panel">
           <form id="settings-form">
-            <div style="margin: 12px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Logs &amp; Channels</div>
-
-            <div class="row">
-              <label for="log-path">Chat logs folder</label>
-              <div style="display: flex; gap: 8px;">
-                <input id="log-path" type="text" style="flex: 1;" placeholder="Documents\EVE\logs\Chatlogs (empty = auto)" />
-                <button id="browse-logs" type="button">Browse…</button>
-              </div>
-            </div>
+            <div style="margin: 12px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Channels</div>
 
             <div class="row">
               <label for="intel-channels">Intel channels (comma separated)</label>
@@ -149,7 +141,17 @@
 
         <div class="tab-content" id="other-settings-panel">
           <form id="other-settings-form">
-            <div style="margin: 12px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Characters</div>
+            <div style="margin: 12px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Logs</div>
+
+            <div class="row">
+              <label for="log-path">Chat logs folder</label>
+              <div style="display: flex; gap: 8px;">
+                <input id="log-path" type="text" style="flex: 1;" placeholder="Documents\EVE\logs\Chatlogs (empty = auto)" />
+                <button id="browse-logs" type="button">Browse…</button>
+              </div>
+            </div>
+
+            <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Characters</div>
 
             <div class="row checks">
               <label><input id="presence-windows" type="checkbox" checked /> Fetch characters via EVE windows (untick = chat logs)</label>

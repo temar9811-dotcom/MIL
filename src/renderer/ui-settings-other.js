@@ -1,13 +1,14 @@
 // # FILE: src/renderer/ui-settings-other.js
-// # VERSION: 3
+// # VERSION: 4
 const otherSettingsForm = document.getElementById('other-settings-form');
+const logPathInput = document.getElementById('log-path');
+const browseBtn = document.getElementById('browse-logs');
 const presenceCheckbox = document.getElementById('presence-windows');
 const primarySelect = document.getElementById('primary-char');
 const bigTextCheckbox = document.getElementById('big-text');
 const debugToggle = document.getElementById('debug-toggle');
 const saveOtherState = document.getElementById('save-other-state');
 
-// FIX: Apply 'big-text' class to the body tag instead of a missing panel ID
 function applyBigText(on) {
   if (on) {
     document.body.classList.add('big-text');
@@ -37,17 +38,16 @@ async function renderPrimaryChar(settings) {
 
 window.loadOtherSettings = (settings) => {
   if (!settings) return;
+  if (logPathInput) logPathInput.value = settings.logPath || '';
   if (presenceCheckbox) presenceCheckbox.checked = (settings.presenceSource || 'window') === 'window';
-  
-  // Apply big text immediately on load
   applyBigText(settings.bigText === true);
-  
   if (debugToggle) debugToggle.checked = settings.enableDebug === true;
   renderPrimaryChar(settings);
 };
 
 window.collectOtherSettings = () => {
   return {
+    logPath: logPathInput ? logPathInput.value : '',
     presenceSource: presenceCheckbox && !presenceCheckbox.checked ? 'logs' : 'window',
     primaryChar: primarySelect ? primarySelect.value : '',
     bigText: bigTextCheckbox ? bigTextCheckbox.checked : false,
@@ -55,9 +55,21 @@ window.collectOtherSettings = () => {
   };
 };
 
-// Instant feedback when clicking the checkbox
 if (bigTextCheckbox) {
   bigTextCheckbox.addEventListener('change', () => applyBigText(bigTextCheckbox.checked));
+}
+
+if (browseBtn && logPathInput) {
+  browseBtn.addEventListener('click', async () => {
+    if (!window.electronAPI || !window.electronAPI.browseFolder) return;
+    const folder = await window.electronAPI.browseFolder();
+    if (folder) {
+      logPathInput.value = folder;
+      if (typeof window.appendDebug === 'function') {
+        window.appendDebug('INFO', `Log folder selected: ${folder}`);
+      }
+    }
+  });
 }
 
 if (otherSettingsForm) {
