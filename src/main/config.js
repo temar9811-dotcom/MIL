@@ -1,4 +1,6 @@
-// MIL config v6 - settings schema v5 (primaryChar)
+// # FILE: src/main/config.js
+// # VERSION: 7
+// MIL config v7 - settings schema v6 (zkillStreamRange, zkillCharFilter)
 const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
@@ -16,7 +18,7 @@ const DEFAULTS = {
 };
 
 // Bump by 1 whenever SETTINGS_DEFAULTS gains or loses a key.
-const SETTINGS_VERSION = 5;
+const SETTINGS_VERSION = 6;
 
 const SETTINGS_DEFAULTS = {
   logPath: '',
@@ -44,6 +46,8 @@ const SETTINGS_DEFAULTS = {
   },
   groupAlerts: {},
   watchList: [],
+  zkillStreamRange: 5,
+  zkillCharFilter: '',
 };
 
 function configPath() {
