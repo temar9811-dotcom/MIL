@@ -1,14 +1,18 @@
 // # FILE: src/renderer/ui-zkill.js
-// # VERSION: 3
+// # VERSION: 4
 /**
 Zkill tab controller with Phase 2 alerting integration.
 Filters kills by stream range for display,
-but sends ALL kills to main process for alert evaluation
-(which uses proximity + soft range from watchlist).
+but sends eligible kills to main process for alert evaluation.
+Includes a 2-minute age gate and 24-hour deduplication for alerts.
 */
 (function () {
 var POLL_MS = 30000;
 var MAX_KILLS = 100;
+var MAX_KILL_AGE_MS = 2 * 60 * 1000; // 2 minutes
+var ALERT_RETENTION_MS = 24 * 60 * 60 * 1000; // 24 hours
+var alertedKills = new Map(); // killmail_id -> timestamp
+
 var pollTimer = null;
 var rangeInput = null;
 var charFilter = null;
@@ -39,7 +43,6 @@ async function saveSettings() {
 function renderKills(kills) {
   if (!killList) return;
   killList.innerHTML = '';
-  
   if (!kills || kills.length === 0) {
     var p = document.createElement('p');
     p.style.color = '#888';
@@ -47,26 +50,21 @@ function renderKills(kills) {
     killList.appendChild(p);
     return;
   }
-  
   var count = Math.min(kills.length, MAX_KILLS);
   for (var i = 0; i < count; i++) {
     var k = kills[i];
     var card = document.createElement('div');
     card.className = 'alert alert-soft';
     card.style.cursor = 'pointer';
-    
     var t = k.time ? new Date(k.time).toLocaleTimeString() : '?';
     var line = t + ' | ' + k.system + ' (' + k.jumps + 'j) | ' + 
                (k.shipType || '?') + ' | ' + (k.victim || '?') + ' | ' + 
                (k.finalBlowChar || '?') + ' (' + (k.attackers || 0) + ')';
-               
     card.textContent = line;
     card.title = line;
-    
     card.addEventListener('click', (function (url) {
       return function () { window.open(url, '_blank'); };
     })(k.url));
-    
     killList.appendChild(card);
   }
 }
@@ -89,27 +87,33 @@ async function poll() {
     if (window.electronAPI && window.electronAPI.getCharacters) {
       chars = await window.electronAPI.getCharacters();
     }
-    
     var filter = getSettings().zkillCharFilter;
     var range = getSettings().zkillStreamRange;
     var systems = [];
-    
     for (var i = 0; i < chars.length; i++) {
       if (!chars[i].online || !chars[i].system) continue;
       if (filter && chars[i].name !== filter) continue;
       if (systems.indexOf(chars[i].system) === -1) systems.push(chars[i].system);
     }
-    
     if (systems.length === 0) { renderKills([]); return; }
     
     var nearby = window.zkillData.systemsWithin(systems, range);
     var kills = await window.zkillApi.fetchRecentKills();
     var filtered = [];
+    var now = Date.now();
     
     for (var j = 0; j < kills.length; j++) {
       var k = kills[j];
-      // Send ALL kills to main process for alert evaluation
-      await processKillForAlerts(k);
+      var killTime = new Date(k.time).getTime();
+      var age = now - killTime;
+      
+      // 1. Dedupe & 2. Age Gate for Alerting
+      if (!alertedKills.has(k.id)) {
+        if (age <= MAX_KILL_AGE_MS) {
+          await processKillForAlerts(k);
+        }
+        alertedKills.set(k.id, now);
+      }
       
       // Filter for tab display based on stream range
       if (nearby.has(k.system)) {
@@ -117,6 +121,12 @@ async function poll() {
         filtered.push(k);
       }
     }
+    
+    // Prune 24h log to prevent memory leak
+    var cutoff = now - ALERT_RETENTION_MS;
+    alertedKills.forEach(function (ts, id) {
+      if (ts < cutoff) alertedKills.delete(id);
+    });
     
     filtered.sort(function (a, b) { return a.jumps - b.jumps; });
     renderKills(filtered);
@@ -131,15 +141,12 @@ async function populateCharFilter() {
   if (!charFilter || !window.electronAPI || !window.electronAPI.getCharacters) return;
   var chars = [];
   try { chars = await window.electronAPI.getCharacters(); } catch (_) { return; }
-  
   var cur = charFilter.value;
   charFilter.innerHTML = '';
-  
   var all = document.createElement('option');
   all.value = '';
   all.textContent = 'All online';
   charFilter.appendChild(all);
-  
   for (var i = 0; i < chars.length; i++) {
     if (!chars[i].online) continue;
     var o = document.createElement('option');
@@ -165,7 +172,6 @@ function init() {
   killList = document.getElementById('zkill-list');
   saveBtn = document.getElementById('zkill-save');
   saveState = document.getElementById('zkill-save-state');
-  
   if (saveBtn) saveBtn.addEventListener('click', saveSettings);
 }
 
