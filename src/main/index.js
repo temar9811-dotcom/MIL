@@ -1,6 +1,6 @@
 // # FILE: src/main/index.js
 // # VERSION: 16
-// MIL main v16 - debug logger always enabled + branding & tray
+// MIL main v16 - debug logger always enabled + branding & tray + minimize to tray
 const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -93,7 +93,6 @@ function createWindow() {
     x: state ? state.x : undefined,
     y: state ? state.y : undefined,
     title: 'MRCHI Intel Lite',
-    // App icon for taskbar and window
     icon: path.join(__dirname, '..', '..', 'assets', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'index.js'),
@@ -108,6 +107,15 @@ function createWindow() {
 
   mainWindow.on('move', scheduleSaveWindowState);
   mainWindow.on('resize', scheduleSaveWindowState);
+  
+  // Intercept minimize event to hide to tray if enabled
+  mainWindow.on('minimize', (e) => {
+    if (config && config.minimizeToTray !== false) {
+      e.preventDefault();
+      mainWindow.hide();
+    }
+  });
+
   mainWindow.on('close', () => {
     saveWindowState();
     if (alertsWindow) alertsWindow.close();
@@ -238,7 +246,6 @@ app.whenReady().then(() => {
     if (alertsWindow) alertsWindow.webContents.send('alert', alert);
   };
 
-  // Register log listener BEFORE creating window
   log.onLog((level, msg, ts) => {
     if (mainWindow) mainWindow.webContents.send('engine-log', `[${level}] ${msg}`);
   });
@@ -247,11 +254,9 @@ app.whenReady().then(() => {
   engine.start(config);
   sendEngineState({ running: engine.isRunning() });
 
-  // Initialize system tray
   trayManager = new TrayManager(log, () => mainWindow);
   trayManager.create();
 
-  // --- Auto-Updater Initialization ---
   appUpdater = new AppUpdater(log);
   appUpdater.checkForUpdates();
   setInterval(() => {
