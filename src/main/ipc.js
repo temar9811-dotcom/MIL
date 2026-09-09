@@ -1,5 +1,5 @@
 // # FILE: src/main/ipc.js
-// # VERSION: 10
+// # VERSION: 9
 
 const { ipcMain, app, dialog } = require('electron');
 const path = require('path');
