@@ -1,0 +1,62 @@
+/* # FILE: src/renderer/style-zkill.css */
+/* # VERSION: 1 */
+/* =========================================
+ZKill Stream Table Styles
+========================================= */
+.zkill-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    table-layout: fixed; /* Helps with consistent column widths */
+}
+body.big-text .zkill-table { font-size: 15px; }
+
+.zkill-table th {
+    text-align: left;
+    padding: 8px 10px;
+    background: #0f3460;
+    color: #e94560;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 12px;
+    border-bottom: 2px solid #e94560;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+body.big-text .zkill-table th { font-size: 14px; padding: 10px 12px; }
+
+.zkill-row {
+    cursor: pointer;
+    transition: background 0.15s ease;
+    border-bottom: 1px solid #0f3460;
+}
+.zkill-row:hover {
+    background: rgba(233, 69, 96, 0.1);
+}
+
+.zkill-cell {
+    padding: 8px 10px;
+    color: #e0e0e0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+}
+body.big-text .zkill-cell { padding: 10px 12px; }
+
+.zkill-jumps {
+    color: #9aa4c7;
+    font-size: 0.9em;
+    margin-left: 4px;
+    font-weight: normal;
+}
+
+/* Column width distribution */
+.zkill-table th:nth-child(1), .zkill-cell:nth-child(1) { width: 10%; } /* Kill Time */
+.zkill-table th:nth-child(2), .zkill-cell:nth-child(2) { width: 15%; } /* System */
+.zkill-table th:nth-child(3), .zkill-cell:nth-child(3) { width: 15%; } /* Victim */
+.zkill-table th:nth-child(4), .zkill-cell:nth-child(4) { width: 15%; } /* Ship */
+.zkill-table th:nth-child(5), .zkill-cell:nth-child(5) { width: 15%; } /* Final Blow */
+.zkill-table th:nth-child(6), .zkill-cell:nth-child(6) { width: 10%; } /* Attackers */
+.zkill-table th:nth-child(7), .zkill-cell:nth-child(7) { width: 10%; } /* Pulled */
