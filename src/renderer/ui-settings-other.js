@@ -1,6 +1,5 @@
 // # FILE: src/renderer/ui-settings-other.js
-// # VERSION: 5
-
+// # VERSION: 7
 const otherSettingsForm = document.getElementById('other-settings-form');
 const logPathInput = document.getElementById('log-path');
 const browseLogsBtn = document.getElementById('browse-logs');
@@ -9,6 +8,7 @@ const primarySelect = document.getElementById('primary-char');
 const bigTextCheckbox = document.getElementById('big-text');
 const minimizeToTrayCheckbox = document.getElementById('minimize-to-tray');
 const debugToggle = document.getElementById('debug-toggle');
+const themeSelect = document.getElementById('theme-select');
 const saveOtherState = document.getElementById('save-other-state');
 
 function applyBigText(on) {
@@ -18,6 +18,12 @@ function applyBigText(on) {
     document.body.classList.remove('big-text');
   }
   if (bigTextCheckbox) bigTextCheckbox.checked = !!on;
+}
+
+function applyTheme(theme) {
+  const validThemes = ['kick-mrchi', 'standout', 'lonely-night', 'shine-bright'];
+  const safeTheme = validThemes.includes(theme) ? theme : 'kick-mrchi';
+  document.body.setAttribute('data-theme', safeTheme);
 }
 
 async function renderPrimaryChar(settings) {
@@ -45,6 +51,11 @@ window.loadOtherSettings = (settings) => {
   applyBigText(settings.bigText === true);
   if (minimizeToTrayCheckbox) minimizeToTrayCheckbox.checked = settings.minimizeToTray !== false;
   if (debugToggle) debugToggle.checked = settings.enableDebug === true;
+  
+  const currentTheme = settings.theme || 'kick-mrchi';
+  if (themeSelect) themeSelect.value = currentTheme;
+  applyTheme(currentTheme);
+  
   renderPrimaryChar(settings);
 };
 
@@ -56,11 +67,16 @@ window.collectOtherSettings = () => {
     bigText: bigTextCheckbox ? bigTextCheckbox.checked : false,
     minimizeToTray: minimizeToTrayCheckbox ? minimizeToTrayCheckbox.checked : true,
     enableDebug: debugToggle ? debugToggle.checked : false,
+    theme: themeSelect ? themeSelect.value : 'kick-mrchi',
   };
 };
 
 if (bigTextCheckbox) {
   bigTextCheckbox.addEventListener('change', () => applyBigText(bigTextCheckbox.checked));
+}
+
+if (themeSelect) {
+  themeSelect.addEventListener('change', () => applyTheme(themeSelect.value));
 }
 
 if (browseLogsBtn && logPathInput) {
@@ -80,7 +96,6 @@ if (otherSettingsForm) {
   otherSettingsForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (saveOtherState) saveOtherState.textContent = 'Saving...';
-    
     const otherSettings = window.collectOtherSettings();
     let existingSettings = {};
     try {
@@ -88,19 +103,15 @@ if (otherSettingsForm) {
         existingSettings = await window.electronAPI.getSettings();
       }
     } catch (_) {}
-    
     const settings = { ...existingSettings, ...otherSettings };
-    
     try {
       if (!window.electronAPI || !window.electronAPI.saveSettings) {
         throw new Error('electronAPI.saveSettings is not available.');
       }
       await window.electronAPI.saveSettings(settings);
-      
       if (window.electronAPI && window.electronAPI.toggleDebug) {
         window.electronAPI.toggleDebug(otherSettings.enableDebug);
       }
-      
       if (saveOtherState) {
         saveOtherState.textContent = 'Saved!';
         setTimeout(() => { saveOtherState.textContent = ''; }, 2000);

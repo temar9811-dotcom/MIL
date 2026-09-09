@@ -1,5 +1,5 @@
 <!-- # FILE: src/renderer/index.html -->
-<!-- # VERSION: 13 -->
+<!-- # VERSION: 15 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -7,6 +7,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
   <title>MRCHI Intel Lite</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="themes.css" />
 </head>
 <body>
   <header>
@@ -161,6 +162,16 @@
 
             <div class="row checks">
               <label><input id="big-text" type="checkbox" /> Bigger text</label>
+            </div>
+
+            <div class="row">
+              <label for="theme-select">Theme</label>
+              <select id="theme-select" style="width: 100%; background: #0b1526; color: #e2e8f0; border: 1px solid #334155; border-radius: 4px; padding: 6px;">
+                <option value="kick-mrchi">Kick MRCHI (Default)</option>
+                <option value="standout">Standout (High Contrast)</option>
+                <option value="lonely-night">Lonely Night (Dark Mode)</option>
+                <option value="shine-bright">Shine Bright (Bright Mode)</option>
+              </select>
             </div>
 
             <div style="margin: 14px 0 6px; color: #f43f5e; font-size: 0.75em; letter-spacing: 1px; text-transform: uppercase;">Window</div>
