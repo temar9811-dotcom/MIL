@@ -1,49 +1,86 @@
 // # FILE: src/renderer/ui-debug.js
-// # VERSION: 7
+// # VERSION: 1
 
-const debugToggle = document.getElementById('debug-toggle');
-const debugPanel = document.getElementById('debug-panel');
-const clearDebugBtn = document.getElementById('clear-debug');
+/**
+ * Isolated, defensive debug-log UI module.
+ * Only this file ever touches #debug-panel.
+ * Exposes:
+ *   window.appendDebug(level, msg)   – formatted line
+ *   window.appendDebugLine(raw)      – raw IPC line
+ *   window.updateDebugTabVisibility()
+ */
+(function () {
+  var MAX_LINES = 200;
+  var panel = null;
+  var tabBtn = null;
+  var clearBtn = null;
+  var toggle = null;
 
-// REMOVED setDebugVisible entirely. 
-// The tab system (ui-tabs.js) handles all panel visibility via CSS classes.
-// Inline styles were overriding the tabs and hiding the log.
+  /* ---- internal helpers ---- */
 
-if (debugToggle) {
-  debugToggle.addEventListener('change', () => {
-    const on = debugToggle.checked;
-    
-    // Only clear the log when turning it back on
-    if (on && debugPanel) {
-      debugPanel.textContent = '';
+  function init() {
+    panel   = document.getElementById('debug-panel');
+    tabBtn  = document.getElementById('debug-tab-btn');
+    clearBtn = document.getElementById('clear-debug');
+    toggle  = document.getElementById('debug-toggle');
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function () {
+        if (panel) panel.textContent = '';
+      });
     }
-    
-    // Just tell the backend to start/stop sending logs
-    if (window.electronAPI && window.electronAPI.toggleDebug) {
-      window.electronAPI.toggleDebug(on);
+
+    if (toggle) {
+      toggle.addEventListener('change', function () {
+        applyVisibility();
+      });
     }
-  });
-}
+  }
 
-if (clearDebugBtn && debugPanel) {
-  clearDebugBtn.addEventListener('click', () => {
-    debugPanel.textContent = '';
-  });
-}
+  function ts() {
+    return new Date().toLocaleTimeString();
+  }
 
-window.appendDebugLine = (line) => {
-  if (!debugPanel) return;
-  const time = new Date().toLocaleTimeString();
-  debugPanel.textContent += `[${time}] ${line}\n`;
-  debugPanel.scrollTop = debugPanel.scrollHeight;
-};
+  function pushLine(text) {
+    if (!panel) return;
+    try {
+      var span = document.createElement('span');
+      span.textContent = text + '\n';
+      panel.appendChild(span);
+      while (panel.childNodes.length > MAX_LINES) {
+        panel.removeChild(panel.firstChild);
+      }
+      panel.scrollTop = panel.scrollHeight;
+    } catch (_) { /* debug must never crash the app */ }
+  }
 
-window.appendDebug = (level, msg) => {
-  window.appendDebugLine(`[${level}] ${msg}`);
-};
+  function applyVisibility() {
+    if (!tabBtn || !toggle) return;
+    if (toggle.checked) {
+      tabBtn.classList.remove('hidden');
+    } else {
+      tabBtn.classList.add('hidden');
+    }
+  }
 
-window.updateDebugLog = (lines) => {
-  if (!debugPanel) return;
-  debugPanel.textContent = Array.isArray(lines) ? lines.join('\n') : lines;
-  debugPanel.scrollTop = debugPanel.scrollHeight;
-};
+  /* ---- public API ---- */
+
+  window.appendDebug = function (level, msg) {
+    var lvl = (level || 'LOG').toUpperCase();
+    pushLine('[' + ts() + '] [' + lvl + '] ' + msg);
+  };
+
+  window.appendDebugLine = function (raw) {
+    pushLine(raw);
+  };
+
+  window.updateDebugTabVisibility = applyVisibility;
+
+  /* ---- bootstrap ---- */
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();

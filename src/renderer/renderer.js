@@ -1,13 +1,14 @@
 // # FILE: src/renderer/renderer.js
-// # VERSION: 14
+// # VERSION: 15
+
 const statusEl = document.getElementById('engine-status');
 const versionEl = document.getElementById('app-version');
 const dockedAlerts = document.getElementById('alerts');
 
 const STATUS_STYLES = {
-  running: { bg: '#143a24', fg: '#4ade80', border: '#22c55e' },
+  running:  { bg: '#143a24', fg: '#4ade80', border: '#22c55e' },
   starting: { bg: '#3a2f14', fg: '#facc15', border: '#eab308' },
-  stopped: { bg: '#3a1414', fg: '#f87171', border: '#ef4444' },
+  stopped:  { bg: '#3a1414', fg: '#f87171', border: '#ef4444' },
 };
 
 function applyEngineState(data) {
@@ -16,7 +17,6 @@ function applyEngineState(data) {
   if (data && typeof data.state === 'string') state = data.state;
   else if (data && data.running === true) state = 'running';
   if (!STATUS_STYLES[state]) state = 'stopped';
-
   const style = STATUS_STYLES[state];
   statusEl.textContent = state === 'starting' ? 'engine: starting…' : `engine: ${state}`;
   statusEl.style.background = style.bg;
@@ -78,12 +78,9 @@ async function init() {
     const settings = await window.electronAPI.getSettings();
     if (typeof window.loadAlertSettings === 'function') window.loadAlertSettings(settings);
     if (typeof window.loadOtherSettings === 'function') window.loadOtherSettings(settings);
-    
-    // Sync debug tab visibility after settings are loaded
     if (typeof window.updateDebugTabVisibility === 'function') {
       window.updateDebugTabVisibility();
     }
-    
     appendDebugSafe('INFO', 'Settings loaded');
   } catch (err) {
     appendDebugSafe('WARN', `Could not load settings: ${err.message}`);
