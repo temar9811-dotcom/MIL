@@ -1,6 +1,10 @@
-// MIL ui-watchlist v4 - per-row color picker
+// # FILE: src/renderer/ui-watchlist.js
+// # VERSION: 5
+// MIL ui-watchlist v5 - added save/load persistence
 const watchListEl = document.getElementById('watch-list');
 const addWatchBtn = document.getElementById('add-watch');
+const saveWatchlistBtn = document.getElementById('save-watchlist');
+const saveWatchlistState = document.getElementById('save-watchlist-state');
 
 function makeRow(entry) {
   const row = document.createElement('div');
@@ -73,8 +77,36 @@ window.getWatchListData = () => {
   return out;
 };
 
+async function saveWatchlist() {
+  if (!window.electronAPI || !window.electronAPI.saveSettings) return;
+  try {
+    const existing = await window.electronAPI.getSettings();
+    const merged = Object.assign({}, existing, { watchList: window.getWatchListData() });
+    await window.electronAPI.saveSettings(merged);
+    if (saveWatchlistState) {
+      saveWatchlistState.textContent = 'Saved!';
+      setTimeout(() => { if (saveWatchlistState) saveWatchlistState.textContent = ''; }, 2000);
+    }
+  } catch (err) {
+    if (typeof window.appendDebug === 'function') {
+      window.appendDebug('WARN', 'Watchlist save failed: ' + err.message);
+    }
+  }
+}
+
+window.loadWatchlistSettings = (settings) => {
+  if (!settings) return;
+  if (Array.isArray(settings.watchList)) {
+    window.renderWatchList(settings.watchList);
+  }
+};
+
 if (addWatchBtn) {
   addWatchBtn.addEventListener('click', () => {
     if (watchListEl) watchListEl.appendChild(makeRow(null));
   });
+}
+
+if (saveWatchlistBtn) {
+  saveWatchlistBtn.addEventListener('click', saveWatchlist);
 }

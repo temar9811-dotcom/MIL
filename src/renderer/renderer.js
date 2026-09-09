@@ -1,10 +1,8 @@
 // # FILE: src/renderer/renderer.js
-// # VERSION: 15
-
+// # VERSION: 17
 const statusEl = document.getElementById('engine-status');
 const versionEl = document.getElementById('app-version');
 const dockedAlerts = document.getElementById('alerts');
-
 const STATUS_STYLES = {
   running:  { bg: '#143a24', fg: '#4ade80', border: '#22c55e' },
   starting: { bg: '#3a2f14', fg: '#facc15', border: '#eab308' },
@@ -71,14 +69,13 @@ async function init() {
     appendDebugSafe('ERROR', 'electronAPI missing - preload not loaded');
     return;
   }
-
   applyEngineState({ state: 'starting' });
-
   try {
     const settings = await window.electronAPI.getSettings();
     if (typeof window.loadAlertSettings === 'function') window.loadAlertSettings(settings);
     if (typeof window.loadOtherSettings === 'function') window.loadOtherSettings(settings);
     if (typeof window.loadZkillSettings === 'function') window.loadZkillSettings(settings);
+    if (typeof window.loadWatchlistSettings === 'function') window.loadWatchlistSettings(settings);
     if (typeof window.updateDebugTabVisibility === 'function') {
       window.updateDebugTabVisibility();
     }
@@ -86,7 +83,6 @@ async function init() {
   } catch (err) {
     appendDebugSafe('WARN', `Could not load settings: ${err.message}`);
   }
-
   try {
     const state = await window.electronAPI.getState();
     applyEngineState(state);
@@ -103,12 +99,10 @@ init();
 
 if (window.electronAPI) {
   window.electronAPI.onEngineState(applyEngineState);
-
   window.electronAPI.onDebugLog((line) => {
     if (typeof window.appendDebugLine === 'function') {
       window.appendDebugLine(line);
     }
   });
-
   window.electronAPI.onAlert((alert) => dockedAddAlert(alert));
 }

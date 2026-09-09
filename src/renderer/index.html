@@ -1,5 +1,5 @@
 <!-- # FILE: src/renderer/index.html -->
-<!-- # VERSION: 20 -->
+<!-- # VERSION: 21 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -58,7 +58,12 @@
         </div>
         <div class="tab-content" id="watch-list-panel">
           <div style="margin-bottom:12px;"><h2 style="font-size:14px;text-transform:uppercase;letter-spacing:1px;color:#e94560;margin-bottom:8px;">Watch List</h2><p style="color:#4ade80;font-size:0.85em;margin-bottom:12px;">Soft alerts for specific pilots or ships. Leave pilot or ship blank to match any.</p></div>
-          <div id="watch-list"></div><button id="add-watch" type="button" style="margin-top:12px;">+ Add watch entry</button>
+          <div id="watch-list"></div>
+          <div style="margin-top:12px;display:flex;gap:8px;align-items:center;">
+            <button id="add-watch" type="button">+ Add watch entry</button>
+            <button id="save-watchlist" type="button">Save</button>
+            <span id="save-watchlist-state" style="font-size:0.85em;"></span>
+          </div>
         </div>
         <div class="tab-content" id="other-settings-panel">
           <form id="other-settings-form">

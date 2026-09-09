@@ -2,7 +2,7 @@
 // # VERSION: 3
 /**
 Zkillboard API wrapper with ESI name resolution.
-Fetches the public killstream and resolves IDs (systems, ships, characters)
+Fetches the public killstream and resolves IDs (systems, characters, ships, corps)
 to human-readable names via ESI /universe/names/.
 Exposes: window.zkillApi.fetchRecentKills()
 */
@@ -44,11 +44,11 @@ async function resolveNames(ids) {
   return result;
 }
 
-function findFinalBlowCharId(attackers) {
+function findFinalBlow(attackers) {
   for (var i = 0; i < attackers.length; i++) {
-    if (attackers[i].final_blow) return attackers[i].character_id || 0;
+    if (attackers[i].final_blow) return attackers[i];
   }
-  return 0;
+  return null;
 }
 
 async function fetchRecentKills() {
@@ -56,33 +56,43 @@ async function fetchRecentKills() {
   if (now - lastFetch < MIN_INTERVAL) return [];
   lastFetch = now;
   try {
-    var resp = await fetch(ZKILL_URL, {
-      headers: { 'Accept': 'application/json' }
-    });
+    var resp = await fetch(ZKILL_URL, { headers: { 'Accept': 'application/json' } });
     if (!resp.ok) return [];
     var kills = await resp.json();
     var ids = [];
+    
     for (var i = 0; i < kills.length; i++) {
       var k = kills[i];
       var v = k.victim || {};
+      var fb = findFinalBlow(k.attackers || []);
+      
       addId(ids, k.solar_system_id);
-      addId(ids, v.ship_type_id);
       addId(ids, v.character_id);
-      addId(ids, findFinalBlowCharId(k.attackers || []));
+      addId(ids, v.ship_type_id);
+      
+      if (fb) {
+        addId(ids, fb.character_id);
+        addId(ids, fb.ship_type_id);
+        addId(ids, fb.corporation_id);
+      }
     }
+    
     var nameMap = await resolveNames(ids);
     var out = [];
+    
     for (var j = 0; j < kills.length; j++) {
       var k = kills[j];
       var v = k.victim || {};
-      var fbId = findFinalBlowCharId(k.attackers || []);
+      var fb = findFinalBlow(k.attackers || []);
+      
       out.push({
         id: k.killmail_id,
         time: k.killmail_time,
-        system: nameMap[k.solar_system_id] || ('System-' + k.solar_system_id),
-        shipType: nameMap[v.ship_type_id] || ('Type-' + (v.ship_type_id || '?')),
+        system: nameMap[k.solar_system_id] || 'Unknown',
         victim: v.character_name || nameMap[v.character_id] || 'Unknown',
-        finalBlowChar: nameMap[fbId] || 'Unknown',
+        finalBlowChar: fb ? (nameMap[fb.character_id] || 'Unknown') : 'Unknown',
+        finalBlowShip: fb ? (nameMap[fb.ship_type_id] || 'Unknown Ship') : 'Unknown Ship',
+        finalBlowCorp: fb ? (nameMap[fb.corporation_id] || 'Unknown Corp') : 'Unknown Corp',
         attackers: (k.attackers || []).length,
         url: 'https://zkillboard.com/kill/' + k.killmail_id + '/'
       });
