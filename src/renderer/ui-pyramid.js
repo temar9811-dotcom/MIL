@@ -1,16 +1,17 @@
-// MIL ui-pyramid v10 - center selector + polling (render split out)
+// # FILE: src/renderer/ui-pyramid.js
+// # VERSION: 11
+// MIL ui-pyramid v11 - center selector + polling + timeout setting
 const toggle = document.getElementById('pyramid-toggle');
 const topToggle = document.getElementById('pyramid-top');
 const clearBtn = document.getElementById('pyramid-clear');
 const fastToggle = document.getElementById('pyramid-fast');
 const fastInfo = document.getElementById('pyramid-fast-info');
 const centerSelect = document.getElementById('pyramid-center');
+const timeoutInput = document.getElementById('pyramid-timeout');
 const box = document.getElementById('pyramid');
 const offBox = document.getElementById('pyramid-off');
-
 const NORMAL_MS = 5000;
 const INTENSIVE_MS = 1000;
-
 let pollTimer = null;
 let pollMs = NORMAL_MS;
 let layoutKey = '';
@@ -133,8 +134,31 @@ if (centerSelect) {
   });
 }
 
+// Handle Intel Map Timeout setting
+if (timeoutInput) {
+  timeoutInput.addEventListener('change', async () => {
+    const val = parseInt(timeoutInput.value, 10) || 10;
+    try {
+      const settings = await window.electronAPI.getSettings();
+      settings.intelTimeout = val;
+      await window.electronAPI.saveSettings(settings);
+    } catch (_) { /* silently fail */ }
+  });
+}
+
 (async () => {
   await renderCenterSelect('');
+  
+  // Load timeout setting
+  if (timeoutInput && window.electronAPI && window.electronAPI.getSettings) {
+    try {
+      const settings = await window.electronAPI.getSettings();
+      if (settings && settings.intelTimeout != null) {
+        timeoutInput.value = settings.intelTimeout;
+      }
+    } catch (_) { /* ignore */ }
+  }
+
   if (!window.electronAPI || !window.electronAPI.getPyramid) return;
   try {
     const data = await window.electronAPI.getPyramid();

@@ -15,13 +15,14 @@ files:
 win:
   target:
     - nsis
+  # Build icon for the installer and executable
+  icon: assets/build/icon.png
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: MRCHI Intel Lite
-# CRITICAL: Add this publish configuration for auto-updater
 publish:
   provider: github
   owner: temar9811-dotcom

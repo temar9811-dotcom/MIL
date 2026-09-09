@@ -7,7 +7,6 @@ const soundCheckbox = document.getElementById('sound-enabled') || document.getEl
 const notificationCheckbox = document.getElementById('notification-enabled') || document.getElementById('notifications');
 const saveState = document.getElementById('save-state');
 const imperiumBtn = document.getElementById('imperium-intel');
-const intelTimeoutInput = document.getElementById('intel-timeout');
 const pingEss = document.getElementById('ping-ess');
 const pingBubble = document.getElementById('ping-bubble');
 const pingDrag = document.getElementById('ping-drag');
@@ -40,7 +39,6 @@ window.loadAlertSettings = (settings) => {
   if (channelsInput) channelsInput.value = settings.intelChannels || '';
   if (soundCheckbox) soundCheckbox.checked = settings.soundEnabled !== false && settings.sound !== false;
   if (notificationCheckbox) notificationCheckbox.checked = settings.notificationEnabled !== false && settings.notifications !== false;
-  if (intelTimeoutInput) intelTimeoutInput.value = settings.intelTimeout ?? 10;
   const ep = (settings && settings.eventPings) || {};
   if (pingEss) pingEss.checked = ep.ess !== false;
   if (pingBubble) pingBubble.checked = ep.bubble !== false;
@@ -69,7 +67,6 @@ window.collectAlertSettings = () => {
     notificationEnabled: notifOn,
     sound: soundOn,
     notifications: notifOn,
-    intelTimeout: intelTimeoutInput ? parseInt(intelTimeoutInput.value, 10) || 10 : 10,
     eventPings: {
       ess: pingEss ? pingEss.checked : true,
       bubble: pingBubble ? pingBubble.checked : true,

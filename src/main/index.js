@@ -1,6 +1,6 @@
 // # FILE: src/main/index.js
-// # VERSION: 15
-// MIL main v15 - debug logger always enabled
+// # VERSION: 16
+// MIL main v16 - debug logger always enabled + branding & tray
 const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -9,6 +9,7 @@ const { loadConfig, saveConfig, SETTINGS_VERSION, SETTINGS_DEFAULTS } = require(
 const { registerIpc } = require('./ipc');
 const { Engine } = require('./engine');
 const { AppUpdater } = require('./updater');
+const { TrayManager } = require('./tray');
 
 // Always enable debug logging
 const log = new DebugLog(true);
@@ -20,6 +21,7 @@ let config = null;
 let engine = null;
 let saveTimer = null;
 let appUpdater = null;
+let trayManager = null;
 
 function windowStatePath() {
   return path.join(app.getPath('userData'), 'window-state.json');
@@ -91,6 +93,8 @@ function createWindow() {
     x: state ? state.x : undefined,
     y: state ? state.y : undefined,
     title: 'MRCHI Intel Lite',
+    // App icon for taskbar and window
+    icon: path.join(__dirname, '..', '..', 'assets', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'index.js'),
       contextIsolation: true,
@@ -243,6 +247,10 @@ app.whenReady().then(() => {
   engine.start(config);
   sendEngineState({ running: engine.isRunning() });
 
+  // Initialize system tray
+  trayManager = new TrayManager(log, () => mainWindow);
+  trayManager.create();
+
   // --- Auto-Updater Initialization ---
   appUpdater = new AppUpdater(log);
   appUpdater.checkForUpdates();
@@ -253,6 +261,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (engine && engine.stop) engine.stop();
+  if (trayManager) trayManager.destroy();
   if (process.platform !== 'darwin') app.quit();
 });
 
