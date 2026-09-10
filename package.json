@@ -1,6 +1,6 @@
 {
   "name": "mrchi-intel-lite",
-  "version": "1.2.2-hotfix",
+  "version": "1.2.3-alpha",
   "description": "EVE Online Intel Alert Tool",
   "main": "src/main/index.js",
   "scripts": {
