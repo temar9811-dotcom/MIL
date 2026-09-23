@@ -174,7 +174,7 @@ const shipPart = alert.ship ? `in a ${alert.ship}` : '';
 this.log.alert(
 `${alert.type.toUpperCase()} ${alert.character} ${alert.jumps}j ${alert.pilot}${shipPart}`,
 );
-this.sounds.play(alert.type);
+if (alert.sound !== false) this.sounds.play(alert.type);
 this.notifications.send(alert);
 if (this.onAlert) this.onAlert(alert);
 }

@@ -1,5 +1,5 @@
 // # FILE: src/renderer/renderer.js
-// # VERSION: 17
+// # VERSION: 18
 const statusEl = document.getElementById('engine-status');
 const versionEl = document.getElementById('app-version');
 const dockedAlerts = document.getElementById('alerts');
@@ -75,6 +75,7 @@ async function init() {
     if (typeof window.loadAlertSettings === 'function') window.loadAlertSettings(settings);
     if (typeof window.loadOtherSettings === 'function') window.loadOtherSettings(settings);
     if (typeof window.loadZkillSettings === 'function') window.loadZkillSettings(settings);
+    if (typeof window.loadLocalMonitorSettings === 'function') window.loadLocalMonitorSettings(settings);
     if (typeof window.loadWatchlistSettings === 'function') window.loadWatchlistSettings(settings);
     if (typeof window.updateDebugTabVisibility === 'function') {
       window.updateDebugTabVisibility();

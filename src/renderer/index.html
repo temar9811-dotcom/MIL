@@ -1,5 +1,5 @@
 <!-- # FILE: src/renderer/index.html -->
-<!-- # VERSION: 21 -->
+<!-- # VERSION: 22 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -22,6 +22,7 @@
         <div class="tab-bar">
           <button class="tab-btn active" data-tab="alerts">Alerts</button>
           <button class="tab-btn" data-tab="zkill">Zkill</button>
+          <button class="tab-btn" data-tab="local-monitor">Local Monitor</button>
           <button class="tab-btn" data-tab="alert-settings">Alert Settings</button>
           <button class="tab-btn" data-tab="watch-list">Watch List</button>
           <button class="tab-btn" data-tab="other-settings">Other Settings</button>
@@ -39,6 +40,51 @@
             <button id="zkill-save" type="button">Save</button><span id="zkill-save-state" style="font-size:0.85em;"></span>
           </div>
           <div id="zkill-list" style="flex:1;overflow-y:auto;border:1px solid #334155;border-radius:4px;padding:8px;background:#0b1526;"><p style="color:#888;margin:0;">Loading kills...</p></div>
+        </div>
+        <div class="tab-content" id="local-monitor-panel">
+          <h2 style="margin:0 0 12px 0;font-size:14px;text-transform:uppercase;letter-spacing:1px;color:#e94560;">Local Monitor</h2>
+          <div class="row lm-status-row">
+            <span id="lm-status">stopped</span>
+            <button id="lm-start" type="button">Start</button>
+            <button id="lm-test" type="button" title="Fire a test red alert">Test alarm</button>
+          </div>
+          <div class="lm-card-head"><strong>Alarm settings</strong></div>
+          <div class="row"><label for="lm-threshold">Detection threshold</label><div style="display:flex;align-items:center;gap:8px;"><input id="lm-threshold" type="range" min="10" max="100" step="1" value="60" style="flex:1;" /><span id="lm-threshold-label" style="width:42px;">60</span></div></div>
+          <div class="row"><label for="lm-cooldown">Cooldown (seconds of quiet after 3 rapid triggers)</label><input id="lm-cooldown" type="number" min="0" step="1" value="60" /></div>
+          <div class="row checks"><label><input id="lm-mute" type="checkbox" /> Mute alarm sound</label></div>
+          <div class="lm-area-card" id="lm-area1">
+            <div class="lm-card-head"><strong>Area 1</strong><label class="lm-check"><input id="lm-en1" type="checkbox" /> enabled</label></div>
+            <div class="lm-actions">
+              <button id="lm-set1" type="button">Set area</button>
+              <button id="lm-preview1" type="button">Preview</button>
+              <label class="lm-check"><input id="lm-boxes1" type="checkbox" /> Show boxes</label>
+            </div>
+            <div class="row lm-coords">
+              <label>x <input id="lm-a1-x" type="number" value="0" /></label>
+              <label>y <input id="lm-a1-y" type="number" value="0" /></label>
+              <label>x2 <input id="lm-a1-x2" type="number" value="0" /></label>
+              <label>y2 <input id="lm-a1-y2" type="number" value="0" /></label>
+            </div>
+            <canvas id="lm-canvas1" width="640" height="360"></canvas>
+            <div class="lm-hint" id="lm-hint1">Area not set — press "Set area" and drag a box over EVE Local.</div>
+          </div>
+          <div class="lm-area-card" id="lm-area2">
+            <div class="lm-card-head"><strong>Area 2</strong><label class="lm-check"><input id="lm-en2" type="checkbox" /> enabled</label></div>
+            <div class="lm-actions">
+              <button id="lm-set2" type="button">Set area</button>
+              <button id="lm-preview2" type="button">Preview</button>
+              <label class="lm-check"><input id="lm-boxes2" type="checkbox" /> Show boxes</label>
+            </div>
+            <div class="row lm-coords">
+              <label>x <input id="lm-a2-x" type="number" value="0" /></label>
+              <label>y <input id="lm-a2-y" type="number" value="0" /></label>
+              <label>x2 <input id="lm-a2-x2" type="number" value="0" /></label>
+              <label>y2 <input id="lm-a2-y2" type="number" value="0" /></label>
+            </div>
+            <canvas id="lm-canvas2" width="640" height="360"></canvas>
+            <div class="lm-hint" id="lm-hint2">Area not set — press "Set area" and drag a box over EVE Local.</div>
+          </div>
+          <div class="row lm-save-row"><button id="lm-save" type="button">Save</button><span id="lm-save-state"></span></div>
         </div>
         <div class="tab-content" id="alert-settings-panel">
           <form id="settings-form">
@@ -102,6 +148,7 @@
   <script src="ui-zkill.js"></script>
   <script src="ui-alerts.js"></script>
   <script src="ui-roster.js"></script>
+  <script src="ui-local-monitor.js"></script>
   <script src="ui-tabs.js"></script>
   <script src="renderer.js"></script>
 </body>

@@ -1,6 +1,6 @@
 // # FILE: src/main/config.js
-// # VERSION: 7
-// MIL config v7 - settings schema v6 (zkillStreamRange, zkillCharFilter)
+// # VERSION: 8
+// MIL config v8 - settings schema v7 (localMonitorEnabled, localArea1/2, localThreshold, localCooldown, localMute, localTemplateDir)
 const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
@@ -18,7 +18,7 @@ const DEFAULTS = {
 };
 
 // Bump by 1 whenever SETTINGS_DEFAULTS gains or loses a key.
-const SETTINGS_VERSION = 6;
+const SETTINGS_VERSION = 7;
 
 const SETTINGS_DEFAULTS = {
   logPath: '',
@@ -48,6 +48,13 @@ const SETTINGS_DEFAULTS = {
   watchList: [],
   zkillStreamRange: 5,
   zkillCharFilter: '',
+  localMonitorEnabled: false,
+  localArea1: { enabled: false, x: 0, y: 0, x2: 0, y2: 0 },
+  localArea2: { enabled: false, x: 0, y: 0, x2: 0, y2: 0 },
+  localThreshold: 60,
+  localCooldown: 60,
+  localMute: false,
+  localTemplateDir: '',
 };
 
 function configPath() {

@@ -1,6 +1,6 @@
 // # FILE: src/renderer/ui-tabs.js
-// # VERSION: 8
-// MIL ui-tabs v8 - added zkill tab support and fixed display persistence
+// # VERSION: 9
+// MIL ui-tabs v9 - added local-monitor tab support
 (function() {
 const tabButtons = document.querySelectorAll('.tab-btn');
 const tabContents = document.querySelectorAll('.tab-content');
@@ -26,6 +26,8 @@ function switchTab(targetTab) {
     const zkillPanel = document.getElementById('zkill-panel');
     zkillPanel.classList.add('active');
     zkillPanel.style.display = 'flex';
+  } else if (targetTab === 'local-monitor') {
+    document.getElementById('local-monitor-panel').classList.add('active');
   } else if (targetTab === 'alert-settings') {
     document.getElementById('alert-settings-panel').classList.add('active');
   } else if (targetTab === 'watch-list') {

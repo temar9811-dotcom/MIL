@@ -6,8 +6,9 @@ const path = require('path');
 const fs = require('fs');
 const { SETTINGS_VERSION } = require('./config');
 const { GROUPS } = require('./intel/groups');
+const { pickRegion } = require('./localmonitor/overlay');
 
-function registerIpc(configApi, engine, log) {
+function registerIpc(configApi, engine, log, localMonitor) {
   const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 
   ipcMain.handle('get-state', () => ({
@@ -131,6 +132,54 @@ function registerIpc(configApi, engine, log) {
     log.info(`Debug toggled: ${enabled}`);
     return { debug: log.isEnabled() };
   });
+
+  if (localMonitor) {
+    ipcMain.handle('local-monitor-start', () => localMonitor.start());
+
+    ipcMain.handle('local-monitor-stop', () => {
+      localMonitor.stop();
+      return { ok: true };
+    });
+
+    ipcMain.handle('local-monitor-status', () => localMonitor.status());
+
+    ipcMain.handle('local-monitor-preview', (_, areaIndex) => {
+      const index = areaIndex === 2 ? 2 : 1;
+      return localMonitor.preview(index);
+    });
+
+    ipcMain.handle('test-local-alarm', () => localMonitor.testAlarm());
+
+    ipcMain.handle('pick-local-area', async (_, areaIndex) => {
+      const key = `localArea${areaIndex === 2 ? 2 : 1}`;
+      const result = await pickRegion();
+      if (!result.ok) {
+        const out = { ok: false, canceled: true };
+        if (result.reason) out.reason = result.reason;
+        return out;
+      }
+      try {
+        let settings;
+        try {
+          settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        } catch (_) {
+          settings = { ...configApi.getConfig() };
+        }
+        const area = { enabled: true, x: result.x, y: result.y, x2: result.x2, y2: result.y2 };
+        settings[key] = area;
+        settings.settingsVersion = SETTINGS_VERSION;
+        fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+        configApi.updateConfig(settings);
+        if (engine.applyConfig) engine.applyConfig(settings);
+        if (localMonitor.emitStatus) localMonitor.emitStatus();
+        log.info(`Local monitor: ${key} set to ${JSON.stringify(area)}`);
+        return { ok: true, areaIndex: areaIndex === 2 ? 2 : 1, area };
+      } catch (err) {
+        log.error(`Failed to save local area: ${err.message}`);
+        return { ok: false, canceled: false, error: err.message };
+      }
+    });
+  }
 }
 
 module.exports = { registerIpc };

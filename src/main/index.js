@@ -10,6 +10,7 @@ const { registerIpc } = require('./ipc');
 const { Engine } = require('./engine');
 const { AppUpdater } = require('./updater');
 const { TrayManager } = require('./tray');
+const { LocalMonitor } = require('./localmonitor/monitor');
 
 // Always enable debug logging
 const log = new DebugLog(true);
@@ -19,6 +20,7 @@ let alertsWindow = null;
 let intelWindow = null;
 let config = null;
 let engine = null;
+let localMonitor = null;
 let saveTimer = null;
 let appUpdater = null;
 let trayManager = null;
@@ -186,6 +188,19 @@ app.whenReady().then(() => {
 
   engine = new Engine(log);
 
+  localMonitor = new LocalMonitor(
+    log,
+    {
+      fireAlert: (alert) => { if (engine) engine.fireAlert(alert); },
+      getSettings: () => config || {},
+    },
+    (status) => {
+      if (mainWindow && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+        mainWindow.webContents.send('local-monitor-status', status);
+      }
+    },
+  );
+
   registerIpc(
     {
       getConfig: () => config,
@@ -193,6 +208,7 @@ app.whenReady().then(() => {
     },
     engine,
     log,
+    localMonitor,
   );
 
   ipcMain.handle('popout-alerts', () => {
@@ -265,6 +281,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  if (localMonitor && localMonitor.stop) localMonitor.stop();
   if (engine && engine.stop) engine.stop();
   if (trayManager) trayManager.destroy();
   if (process.platform !== 'darwin') app.quit();
