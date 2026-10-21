@@ -21,7 +21,7 @@
   "build": {
     "appId": "com.mrchi.intel-lite",
     "productName": "MRCHI Intel Lite",
-    "icon": "assets/build/icon.png",
+    "icon": "assets/build/icon.ico",
     "files": [
       "**/*",
       "!static.db",
