@@ -197,6 +197,16 @@ function createAlertsWindow() {
     height: 640,
     title: 'MRCHI Alerts',
     alwaysOnTop: true,
+    // The alerts window floats over the game with only its cards and text solid.
+    // Electron requires a transparent window to be non-resizable - resizable with
+    // transparent can stop a window working at all - and nothing resizes this one
+    // programmatically, so pinning its size costs nothing. frame:false removes the
+    // native title bar, so alerts.html supplies its own close button and drag
+    // region. hasShadow is left alone: the caveat for it is macOS-only.
+    transparent: true,
+    frame: false,
+    resizable: false,
+    backgroundColor: '#00000000',
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'index.js'),
       contextIsolation: true,

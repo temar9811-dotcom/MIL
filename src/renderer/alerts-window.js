@@ -9,6 +9,13 @@ if (aotCheckbox) {
   });
 }
 
+// The window is frameless, so this button is the only close affordance besides
+// closing it from the main window.
+const closeBtn = document.getElementById('close-alerts');
+if (closeBtn) {
+  closeBtn.addEventListener('click', () => window.close());
+}
+
 async function init() {
   if (!window.electronAPI) return;
   try {

@@ -372,3 +372,69 @@ body.big-text #save-state, body.big-text #save-other-state { font-size: 14px; }
   font-size: 12px;
   color: #1b7a3d;
 }
+
+/* The alerts pop-out is a frameless, transparent window: only its cards and
+   text should be solid, so the desktop or game behind it shows through. Every
+   rule is scoped to .alerts-window because this stylesheet is shared with the
+   main window and the Intel Map pop-out, which stay opaque. */
+.alerts-window {
+  background: transparent;
+}
+
+.alerts-window header {
+  background: transparent;
+  border-bottom: none;
+  /* No native title bar, so the header is the drag handle. Anything inside it
+     that needs clicks has to opt back out below. */
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.alerts-window header label,
+.alerts-window header button,
+.alerts-window header input {
+  /* A drag region swallows pointer events; without this the Always-on-top
+     checkbox and the close button stop responding. */
+  -webkit-app-region: no-drag;
+}
+
+.alerts-window .panel {
+  background: transparent;
+  border: none;
+}
+
+/* The cards carry their own fill so they stay readable once the panel behind
+   them is see-through. The renderer builds class "alert alert-red" /
+   "alert alert-soft"; the older .alert-row rules this mirrors were never
+   matched by anything. */
+.alerts-window .alert {
+  color: #e0e0e0;
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+
+.alerts-window .alert-red {
+  background: #3a1218;
+  border-left: 4px solid #e94560;
+}
+
+.alerts-window .alert-soft {
+  background: #332b12;
+  border-left: 4px solid #e0a520;
+}
+
+.win-close {
+  margin-left: auto;
+  background: transparent;
+  color: #9aa4c7;
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.win-close:hover {
+  background: #a31621;
+  color: #fff;
+}

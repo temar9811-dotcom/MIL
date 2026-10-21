@@ -38,7 +38,7 @@ let pollTimer = null;
 let pollMs = NORMAL_MS;
 let layoutKey = '';
 let tileEls = new Map();
-let mapView = false;
+let mapView = true;
 let mapInit = false;
 let mapInitKey = null;
 let mapKey = 'neweden';
@@ -98,10 +98,26 @@ async function ensureMapInit() {
   }
 }
 
+// The one owner of the pop-out window size. Both the bootstrap path
+// (setActive -> applyView) and the view toggle (setMapView -> applyView) go
+// through here, so a window opened straight into 2D gets the map size without
+// a second, competing resize. In the tab canResize() is false and this is a
+// no-op - the panel is sized by the app layout.
+function applyViewSize() {
+  if (!canResize()) return;
+  if (mapView) {
+    window.electronAPI.resizePyramid({ w: 1500, h: 1000 }).catch(() => { /* window may stay put */ });
+    return;
+  }
+  box.style.width = 'max-content';
+  window.electronAPI.resizePyramid({ w: box.scrollWidth, h: box.scrollHeight }).catch(() => { /* ignore */ });
+}
+
 function applyView() {
   mapBox.style.display = mapView ? 'block' : 'none';
   box.style.display = mapView ? 'none' : 'block';
   if (mapSelect) mapSelect.style.display = mapView ? 'inline-block' : 'none';
+  applyViewSize();
 }
 
 // Why the map is showing nothing. Saying the reason matters: a tab that is
@@ -181,19 +197,12 @@ function paintViewButtons() {
 async function setMapView(on) {
   mapView = !!on;
   paintViewButtons();
+  // applyView is the only resize owner, so switching view sizes the pop-out
+  // exactly once. Switching to the map still has to make sure its layout data
+  // is loaded before MapRender.update runs from refresh().
   if (active) applyView();
   if (mapSelect) mapSelect.value = mapKey;
-  if (on) {
-    await ensureMapInit();
-    if (canResize()) {
-      try { await window.electronAPI.resizePyramid({ w: 1500, h: 1000 }); } catch (_) { /* window may stay put */ }
-    }
-  } else if (canResize()) {
-    try {
-      box.style.width = 'max-content';
-      await window.electronAPI.resizePyramid({ w: box.scrollWidth, h: box.scrollHeight });
-    } catch (_) { /* ignore */ }
-  }
+  if (on) await ensureMapInit();
   refresh();
 }
 

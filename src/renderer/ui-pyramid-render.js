@@ -2,6 +2,9 @@
 (function () {
   const MIN_TILE = 12;
   const GAP = 2;
+  // The apex row is one tile wide; this keeps a single-system row from rounding
+  // down to nothing.
+  const MIN_ROW = MIN_TILE + GAP;
   const SHADE_ODD = '#465671';
   const SHADE_EVEN = '#35425a';
 
@@ -65,11 +68,25 @@
     tileEls.clear();
     const frag = document.createDocumentFragment();
 
-    const maxJumps = data.softMax || (data.rows.length ? data.rows[data.rows.length - 1].jumps : 1) || 1;
+    // The base row is the furthest one actually rendered, not softMax: softMax is
+    // proximity + extra and can sit a jump or two past the deepest row, which
+    // would leave the bottom row short of full width and visibly truncate the
+    // triangle. Rows arrive sorted ascending by jumps, so the last one is the base.
+    const maxJumps = (data.rows.length ? data.rows[data.rows.length - 1].jumps : 1) || 1;
 
+    // The triangle's base width. Each row is drawn at base * (jumps / maxJumps)
+    // so the silhouette is a straight-edged triangle regardless of how many
+    // systems a row happens to hold. base must therefore be wide enough that no
+    // row's fraction is narrower than the row's own minimum: tiles are
+    // flex:1 1 0 with minWidth 8px, so a row needs count * (8 + GAP) px or it
+    // spills out of its fixed-width container (a stray horizontal scrollbar, and
+    // a wrong scrollWidth for autosize). Scaling each row's natural width up by
+    // maxJumps / jumps gives the smallest base that can never bind.
     let base = 320;
     for (const row of data.rows) {
-      base = Math.max(base, row.systems.length * (MIN_TILE + GAP));
+      if (row.jumps <= 0) continue;
+      const scaled = row.systems.length * (MIN_TILE + GAP) * (maxJumps / row.jumps);
+      base = Math.max(base, Math.ceil(scaled));
     }
 
     const bounds = new Map();
@@ -105,9 +122,11 @@
       wrap.style.justifyContent = 'center';
 
       const cells = document.createElement('div');
-      const natural = row.systems.length * (MIN_TILE + GAP);
-      const fraction = (row.jumps + 1) / (maxJumps + 1);
-      const slice = Math.max(natural, Math.round(base * fraction));
+      // jumps / maxJumps puts YOU at the apex (fraction 0, pinned to MIN_ROW) and
+      // the deepest row at full base. natural is deliberately not a floor here -
+      // stacking it back in is what collapsed the taper into a rectangle.
+      const fraction = row.jumps / maxJumps;
+      const slice = Math.max(MIN_ROW, Math.round(base * fraction));
       cells.style.width = `${slice}px`;
       cells.style.display = 'flex';
       cells.style.gap = `${GAP}px`;
