@@ -1,4 +1,4 @@
-// MIL parser v5 - URL fallback + asterisk cleanup + ualx alias + strip alias tokens
+// MIL parser v12 - URL fallback + asterisk cleanup + ualx alias + strip alias tokens + keep digits in names + carry raw line + pilot names must contain a letter and must not start with - . + split distinct pilots on 2+ spaces or a tab + ignore o7/m4 chat noise
 const SHIP_ALIASES = {
   cni: 'Caracal Navy Issue',
   eni: 'Exequror Navy Issue',
@@ -57,7 +57,7 @@ const IGNORE = new Set([
   'clr', 'clear', 'clrear', 'ckr', 'lr', 'cleared', 'nv', 'loc', 'wh', 'whs', 'xl', 'x2',
   'gate', 'on', 'in', 'at', 'to', 'the', 'a', 'an', 'of', 'and', 'or', 'probably', 'still',
   'cloaked', 'cloaky', 'smartbomb', 'smartbomber', 'gang', 'fleet', 'members', 'frat',
-  'jumping', 'jump', 'jumped', 'jumpig', 'jmpd', 'ty', 'tyty', 'thx', 'fc', 'pvp', 'nice',
+  'jumping', 'jump', 'jumped', 'jumpig', 'jmpd', 'ty', 'tyty', 'thx', 'fc', 'pvp', 'nice', 'o7', 'm4',
   'wrong', 'chat', 'sorry', 'maybe', 'here', 'docked', 'sitting', 'mins', 'minutes',
   'hostiles', 'wtf', 'not', 'some', 'navy', 'issue', 'combat', 'probes', 'out', 'left',
   'ran', 'through', 'next', 'system', 'large', 'group', 'likely', 'took', 'from',
@@ -85,6 +85,14 @@ class IntelParser {
 
   esc(name) {
     return String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  normalize(text) {
+    return String(text)
+      .replace(/https?:\/\/\S+/g, ' ')
+      .replace(/\*/g, ' ')
+      .replace(/\uFEFF/g, ' ')
+      .replace(/(?<![A-Za-z0-9])\d+\s*[x\u0445\u0425]\s*/gi, ' ');
   }
 
   hasWord(text, name) {
@@ -115,11 +123,7 @@ class IntelParser {
 
     const links = rawText.match(/https?:\/\/\S+/g) || [];
 
-    const text = rawText
-      .replace(/https?:\/\/\S+/g, ' ')
-      .replace(/\*/g, ' ')
-      .replace(/\uFEFF/g, ' ')
-      .replace(/\d+\s*[x\u0445]\s*/gi, ' ');
+    const text = this.normalize(rawText);
 
     const systems = [];
     
@@ -163,8 +167,8 @@ class IntelParser {
     }
 
     const count = this.extractCount(text);
-    const pilots = this.extractPilots(text, systems, ships, msg);
-    if (!pilots.length && !systems.length && !ships.length && !count && !events.length) return null;
+    const pilots = this.extractPilots(text, systems, ships, msg, rawText);
+    if (!pilots.length && !systems.length && !ships.length && !count && !events.length && !links.length) return null;
 
     const list = pilots.length ? pilots : [null];
     return list.map((pilot) => ({
@@ -178,24 +182,37 @@ class IntelParser {
       system: systems[0] || null,
       events,
       links,
+      raw: msg.raw || null,
     }));
   }
 
-  extractPilots(text, systems, ships, msg) {
+  extractPilots(text, systems, ships, msg, rawText) {
     const pilots = [];
     const push = (name) => {
-      let n = String(name || '').trim();
-      n = n.replace(/[.,!?;:]+$/, '');
+      let n = String(name || '').replace(/\s+/g, ' ').trim();
+      n = n.replace(/[.,!?;:]+$/, '').trim();
       if (n.length < 2 || n.length > 40) return;
+      if (!/\p{L}/u.test(n)) return; // a pilot name must contain a letter; drops digit/punctuation runs like -22466, 70.4, 13-15-5
+      if (/^[-.]/.test(n)) return; // and never starts with - or . (pasted scan/kill dumps, ----INTEL---- separators)
       if (IGNORE.has(n.toLowerCase())) return;
       if (/^[A-Z0-9]{2,5}-[A-Z0-9]{2,5}$/i.test(n)) return;
       if (msg.author && n.toLowerCase() === String(msg.author).toLowerCase()) return;
       if (!pilots.includes(n)) pilots.push(n);
     };
 
-    for (const m of text.matchAll(/击杀：\s*([^\s(（,，]+)/g)) push(m[1]);
-    
-    const killRegex = /(?:Kill|Победа|Victoire|Sieg|Victoria|击杀):\s*([A-Z0-9][\w.'-]*(?:\s+[A-Z0-9][\w.'-]*){0,3})/gi;
+    const runText = (work) => {
+      const runRe = /[A-Z0-9][\w.'-]*(?:\s+[A-Z0-9][\w.'-]*){0,3}/g;
+      let rm;
+      while ((rm = runRe.exec(work))) {
+        let start = rm.index;
+        while (start > 0 && /[\w.'-]/.test(work[start - 1])) start--;
+        push(work.slice(start, rm.index + rm[0].length).trim());
+      }
+      const cjk = work.match(/[一-鿿]{2,}(?:\s+[一-鿿]{2,}){0,3}/g) || [];
+      for (const run of cjk) push(run.trim());
+    };
+
+    const killRegex = /(?:Kill|Победа|Victoire|Sieg|Victoria|击杀)[:：]\s*([^\s(（,，][\w.'-]*(?:\s+[A-Z0-9][\w.'-]*){0,3})/gi;
     for (const m of text.matchAll(killRegex)) {
       push(m[1].trim());
       const shipInKill = m[0].match(/\(([^)]+)\)/);
@@ -205,25 +222,30 @@ class IntelParser {
       }
     }
 
-    let work = text;
-    work = work.replace(/击杀：[^\s(（,，]+(\s*\(([^)）]*)\))?/g, ' ');
-    work = work.replace(/(?:Kill|Победа|Victoire|Sieg|Victoria|击杀):[^(]*(\([^)]*\))?/gi, ' ');
-    
-    for (const s of systems) work = this.removeWord(work, s);
-    for (const s of ships) work = this.removeWord(work, s);
-    
-    for (const k of Object.keys(SYSTEM_ALIASES)) work = this.removeWord(work, k);
-    for (const k of Object.keys(SHIP_ALIASES)) work = this.removeWord(work, k);
-    
-    work = work.replace(/\(([^)）]*)\)/g, ' ');
-    work = work.replace(/[+＝=]\s?\d+/g, ' ');
-    work = work.replace(/\b\d+\s*[+=-]?\b/g, ' ');
-    for (const w of IGNORE) work = this.removeWord(work, w);
+    const killStrip = /(?:Kill|Победа|Victoire|Sieg|Victoria|击杀)[:：][^(]*(\([^)）]*\))?/gi;
 
-    const runs = work.match(/[A-Z0-9][\w.'-]*(?:\s+[A-Z0-9][\w.'-]*){0,3}/g) || [];
-    for (const run of runs) push(run.trim());
-    const cjk = work.match(/[一-鿿]{2,}(?:\s+[一-鿿]{2,}){0,3}/g) || [];
-    for (const run of cjk) push(run.trim());
+    // Two or more consecutive spaces, or any tab, can never appear inside a
+    // real EVE pilot name, so treat them as a hard boundary between distinct
+    // pilots. Split the ORIGINAL message, not the post-replacement text, whose
+    // own substitutions can introduce double spaces of their own.
+    const source = String(rawText != null ? rawText : text);
+    for (const rawSegment of source.split(/\t+|\s{2,}/)) {
+      if (!rawSegment.trim()) continue;
+      let work = this.normalize(rawSegment).replace(killStrip, ' ');
+
+      for (const s of systems) work = this.removeWord(work, s);
+      for (const s of ships) work = this.removeWord(work, s);
+
+      for (const k of Object.keys(SYSTEM_ALIASES)) work = this.removeWord(work, k);
+      for (const k of Object.keys(SHIP_ALIASES)) work = this.removeWord(work, k);
+
+      work = work.replace(/\(([^)）]*)\)/g, ' ');
+      work = work.replace(/[+＝=]\s?\d+/g, ' ');
+      work = work.replace(/(^|\s)(?:\d+[+=-]|\d)(?=\s|$)/g, ' ');
+      for (const w of IGNORE) work = this.removeWord(work, w);
+
+      runText(work);
+    }
     return pilots;
   }
 }

@@ -1,18 +1,32 @@
 // # FILE: src/main/index.js
-// # VERSION: 16
-// MIL main v16 - debug logger always enabled + branding & tray + minimize to tray
+// # VERSION: 22
+// MIL main v22 - updater rewritten to the ESP model: hourly check, changelog
+// popup, `autoInstallUpdates` on/off setting, dotted installer names, and an
+// explicit pre-install shutdown so the engine never outlives the quit.
+// MIL main v21 - one settings store (config.json); the old settings.json is
+// imported once inside loadConfig() and no longer shadows saves at startup.
+// MIL main v20 - module gates: map/zkill/local monitor are opt-in and their
+// main-process code is only constructed when the user enables them. The log
+// reader and the alert system are always loaded.
 const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { DebugLog } = require('./debug');
-const { loadConfig, saveConfig, SETTINGS_VERSION, SETTINGS_DEFAULTS } = require('./config');
+const { loadConfig, saveConfig, normalizeConfig } = require('./config');
 const { registerIpc } = require('./ipc');
 const { Engine } = require('./engine');
-const { AppUpdater } = require('./updater');
+const updater = require('./updater');
 const { TrayManager } = require('./tray');
+const { AlertsBus } = require('./alerts-bus');
+const { PilotResolver } = require('./intel/pilot-resolver');
 
 // Always enable debug logging
 const log = new DebugLog(true);
+
+// The Local Monitor is a dev-only module. Outside a packaged build it must not
+// come up at all, whatever the saved setting says, so every gate that could
+// raise it is qualified with this rather than with the raw config key.
+const IS_DEV = !app.isPackaged;
 
 let mainWindow = null;
 let alertsWindow = null;
@@ -20,44 +34,78 @@ let intelWindow = null;
 let config = null;
 let engine = null;
 let saveTimer = null;
-let appUpdater = null;
 let trayManager = null;
+let localMonitor = null;
+let alertsBus = null;
+let pilotResolver = null;
+
+// --- module gates ----------------------------------------------------------
+// Optional modules are not merely hidden when off: they are never required and
+// never constructed. That is the whole point of the gate, so the cost of a
+// module the user did not ask for is a config lookup, not a live object with
+// timers and a template directory scan behind it.
+function moduleEnabled(key) {
+  return !!(config && config[key]);
+}
+
+// The local monitor is the one module with a main-process half that must exist
+// for its UI to work at all, so it is built on first enable and torn down on
+// disable. Requiring it lazily is deliberate: `require` at module scope would
+// load its capture/vision code on every launch regardless of the gate.
+function getLocalMonitor() {
+  if (!localMonitor) {
+    const { LocalMonitor } = require('./localmonitor');
+    localMonitor = new LocalMonitor(log, {
+      // The alert bus is the only thing it is given. It has no reference to the
+      // engine, the map or zkill, and cannot acquire one.
+      alerts: alertsBus,
+      onStatus: sendLocalMonitorStatus,
+      onAlarm: (alert) => {
+        if (alertsBus) alertsBus.push(alert);
+      },
+    });
+    localMonitor.applySettings(config || {});
+    log.info('Local Monitor module instantiated');
+  }
+  return localMonitor;
+}
+
+function dropLocalMonitor() {
+  if (!localMonitor) return;
+  localMonitor.dispose();
+  localMonitor = null;
+  log.info('Local Monitor module torn down');
+}
+
+// Called after settings change. Each module gets told to come up or go away.
+function applyModuleGates(previous) {
+  const wasLocal = !!(previous && previous.localMonitorEnabled);
+  // Dev-only: a packaged build forces the gate off instead of reading it, so a
+  // setting flipped during development cannot bring the module up in production.
+  const isLocal = IS_DEV && moduleEnabled('localMonitorEnabled');
+  if (isLocal && !wasLocal) {
+    getLocalMonitor();
+  } else if (!isLocal && wasLocal) {
+    dropLocalMonitor();
+  }
+  if (localMonitor) localMonitor.applySettings(config || {});
+
+  // A disabled map must not be reachable through the pop-out either, and a
+  // pop-out left open across a disable has to be closed.
+  if (!moduleEnabled('mapEnabled') && intelWindow) {
+    intelWindow.close();
+  }
+  if (engine) {
+    engine.setPyramid(moduleEnabled('mapEnabled'));
+  }
+}
+
+function sendLocalMonitorStatus(status) {
+  if (mainWindow) mainWindow.webContents.send('local-monitor-status', status);
+}
 
 function windowStatePath() {
   return path.join(app.getPath('userData'), 'window-state.json');
-}
-
-function settingsPath() {
-  return path.join(app.getPath('userData'), 'settings.json');
-}
-
-function migrateSettings() {
-  let src = null;
-  try { src = JSON.parse(fs.readFileSync(settingsPath(), 'utf8')); } catch (_) { src = null; }
-  if (!src || typeof src !== 'object') src = {};
-
-  const out = {};
-  for (const [key, def] of Object.entries(SETTINGS_DEFAULTS)) {
-    out[key] = (key in src) ? src[key] : def;
-  }
-  out.settingsVersion = SETTINGS_VERSION;
-
-  const added = Object.keys(SETTINGS_DEFAULTS).filter((k) => !(k in src));
-  const removed = Object.keys(src).filter((k) => !(k in SETTINGS_DEFAULTS));
-  const versionChanged = src.settingsVersion !== SETTINGS_VERSION;
-
-  if (added.length || removed.length || versionChanged) {
-    try {
-      fs.writeFileSync(settingsPath(), JSON.stringify(out, null, 2));
-      log.info(
-        `Settings migrated to v${SETTINGS_VERSION}` +
-        `(added: ${added.join(', ') || 'none'}; removed: ${removed.join(', ') || 'none'})`,
-      );
-    } catch (err) {
-      log.error(`Settings migration failed: ${err.message}`);
-    }
-  }
-  return out;
 }
 
 function loadWindowState() {
@@ -98,12 +146,19 @@ function createWindow() {
       preload: path.join(__dirname, '..', 'preload', 'index.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      // How the renderer learns it is running from source: the flag is only
+      // passed in dev, and the preload exposes it as electronAPI.isDev.
+      additionalArguments: IS_DEV ? ['--is-dev'] : [],
     },
   });
 
   if (state && state.isMaximized) mainWindow.maximize();
   mainWindow.setAutoHideMenuBar(true);
   mainWindow.setMenuBarVisibility(false);
+
+  // Every window recreation (including `activate` on macOS) must rebind the
+  // updater, or pushes go to a destroyed webContents and updates go quiet.
+  updater.setWindow(mainWindow);
 
   mainWindow.on('move', scheduleSaveWindowState);
   mainWindow.on('resize', scheduleSaveWindowState);
@@ -121,7 +176,11 @@ function createWindow() {
     if (alertsWindow) alertsWindow.close();
     if (intelWindow) intelWindow.close();
   });
-  mainWindow.on('closed', () => { mainWindow = null; });
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+    // Never let a stray region picker keep the app alive with no main window.
+    if (localMonitor) localMonitor.closeOverlay();
+  });
 
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   log.info('Window created');
@@ -151,10 +210,17 @@ function createAlertsWindow() {
 }
 
 function createIntelWindow() {
+  // The pop-out is a way to see the map, not a way to switch it on. If the
+  // module is gated off there is nothing to look at, so refuse rather than
+  // open an empty window.
+  if (!moduleEnabled('mapEnabled')) {
+    log.warn('Intel Map pop-out refused: the module is disabled in settings');
+    return false;
+  }
   if (intelWindow) {
     if (intelWindow.isMinimized()) intelWindow.restore();
     intelWindow.focus();
-    return;
+    return true;
   }
   intelWindow = new BrowserWindow({
     width: 960,
@@ -169,30 +235,88 @@ function createIntelWindow() {
   });
   intelWindow.setMenu(null);
   intelWindow.loadFile(path.join(__dirname, '..', 'renderer', 'pyramid.html'));
-  intelWindow.on('closed', () => { intelWindow = null; });
+  // The window closing is the release half of the handshake; the open half is
+  // the pop-out telling us it has taken the work. Either way the tab is told,
+  // so it can stop and then resume refreshing.
+  intelWindow.on('closed', () => {
+    intelWindow = null;
+    if (mainWindow) mainWindow.webContents.send('intel-map-popout', false);
+  });
   log.info('Intel Map pop-out window opened');
+  return true;
 }
 
 function sendEngineState(state) {
   if (mainWindow) mainWindow.webContents.send('engine-state', state);
 }
 
+// One teardown path, reachable from both `window-all-closed` and the updater
+// (which must stop the engine and the tray *before* handing the app to the
+// installer - `quitAndInstall` does not wait for this event, and it is not
+// idempotent on its own). Idempotent so whichever runs second is a no-op.
+let shutdownDone = false;
+function shutdownForInstall() {
+  if (shutdownDone) return;
+  shutdownDone = true;
+  try {
+    if (engine && engine.stop) engine.stop();
+  } catch (err) {
+    log.warn(`Engine stop during shutdown failed: ${err.message}`);
+  }
+  try {
+    if (localMonitor) localMonitor.dispose();
+  } catch (err) {
+    log.warn(`Local monitor dispose during shutdown failed: ${err.message}`);
+  }
+  try {
+    if (trayManager) trayManager.destroy();
+  } catch (err) {
+    log.warn(`Tray destroy during shutdown failed: ${err.message}`);
+  }
+}
+
 app.whenReady().then(() => {
   log.setLogFile(path.join(app.getPath('userData'), 'debug.log'));
   log.info('App ready');
 
+  // One store, read once. loadConfig() also performs the one-time import of a
+  // legacy settings.json and writes the normalised config.json back.
   config = loadConfig();
-  config = { ...config, ...migrateSettings() };
 
   engine = new Engine(log);
+  alertsBus = new AlertsBus(log, engine);
+  pilotResolver = new PilotResolver({
+    log,
+    cachePath: path.join(app.getPath('userData'), 'pilots.json'),
+    saveHistory: () => engine.saveAlertHistory(),
+  });
+
+  // Gates are applied before any window is created, so a module that is off is
+  // never constructed in the first place.
+  applyModuleGates(null);
 
   registerIpc(
     {
       getConfig: () => config,
-      updateConfig: (c) => { config = c; saveConfig(c); },
+      updateConfig: (c) => {
+        const previous = config;
+        // Merge over the live config, not over the defaults. `normalizeConfig`
+        // only guarantees unknown keys are kept; a partial payload would still
+        // send every omitted key back to its default and silently discard the
+        // user's stored value.
+        config = normalizeConfig({ ...config, ...(c && typeof c === 'object' ? c : {}) });
+        applyModuleGates(previous);
+        saveConfig(config);
+      },
     },
     engine,
     log,
+    // A thunk, not the instance: the ipc layer resolves the monitor per request,
+    // so it always sees the current one and sees null while the module is gated
+    // off. It must not be getLocalMonitor - that would quietly construct a
+    // disabled module the first time the settings tab asks for its status.
+    () => localMonitor,
+    updater,
   );
 
   ipcMain.handle('popout-alerts', () => {
@@ -201,7 +325,18 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('open-pyramid', () => {
-    createIntelWindow();
+    const opened = createIntelWindow();
+    return { ok: !!opened, error: opened ? null : 'Intel Map is disabled in settings' };
+  });
+
+  // The pop-out claims the map so the tab stops refreshing while it is open.
+  // Only the pop-out is allowed to make this claim - the tab asking for it
+  // would be asking to pause itself, which is never what anyone means.
+  ipcMain.handle('intel-map-popout', (e, open) => {
+    const fromIntel = intelWindow && !intelWindow.isDestroyed()
+      && intelWindow.webContents.id === e.sender.id;
+    if (!fromIntel) return { ok: false };
+    if (mainWindow) mainWindow.webContents.send('intel-map-popout', !!open);
     return { ok: true };
   });
 
@@ -244,6 +379,12 @@ app.whenReady().then(() => {
   engine.onAlert = (alert) => {
     if (mainWindow) mainWindow.webContents.send('alert', alert);
     if (alertsWindow) alertsWindow.webContents.send('alert', alert);
+    if (pilotResolver) pilotResolver.enrich(alert);
+  };
+
+  pilotResolver.onUpdated = (alert) => {
+    if (mainWindow) mainWindow.webContents.send('alert-updated', alert);
+    if (alertsWindow) alertsWindow.webContents.send('alert-updated', alert);
   };
 
   log.onLog((level, msg, ts) => {
@@ -254,19 +395,38 @@ app.whenReady().then(() => {
   engine.start(config);
   sendEngineState({ running: engine.isRunning() });
 
+  // The gate says the module is available, not that it is running. Enabling the
+  // module must never start detection on its own: the monitor stays stopped
+  // across every launch, including one right after a crash, until the user
+  // presses Start. Autostarting here also fired before any area was picked and
+  // logged a hard error on every single launch.
+
   trayManager = new TrayManager(log, () => mainWindow);
   trayManager.create();
 
-  appUpdater = new AppUpdater(log);
-  appUpdater.checkForUpdates();
-  setInterval(() => {
-    appUpdater.checkForUpdates();
-  }, 4 * 60 * 60 * 1000);
+  // The updater owns its own hourly timer; the only thing done here is the
+  // startup check. `getSettings` reads the live config, and `setLastSeenVersion`
+  // writes through saveConfig directly - routing it through updateConfig would
+  // fire applyModuleGates and engine.applyConfig for a cosmetic key.
+  updater.initUpdater({
+    log,
+    getSettings: () => config,
+    setLastSeenVersion: (v) => {
+      if (!config) return;
+      config.lastSeenVersion = v;
+      saveConfig(config);
+    },
+    shutdownForInstall,
+  });
+  updater.checkForUpdates();
+});
+
+app.on('before-quit', () => {
+  if (pilotResolver) pilotResolver.flush();
 });
 
 app.on('window-all-closed', () => {
-  if (engine && engine.stop) engine.stop();
-  if (trayManager) trayManager.destroy();
+  shutdownForInstall();
   if (process.platform !== 'darwin') app.quit();
 });
 

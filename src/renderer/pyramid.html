@@ -1,5 +1,5 @@
 <!-- # FILE: src/renderer/pyramid.html -->
-<!-- # VERSION: 8 -->
+<!-- # VERSION: 9 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -8,7 +8,7 @@
   <title>MRCHI Intel Map</title>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
+<body data-pyramid-host="popout">
   <header>
     <h1>Intel Map</h1>
     <select id="pyramid-center" style="background: #0b1526; color: #e2e8f0; border: 1px solid #334155; border-radius: 4px; padding: 4px; font-size: 12px;"></select>
@@ -20,27 +20,38 @@
     <label class="debug-label">
       <input type="checkbox" id="pyramid-top" checked /> On top
     </label>
-    <label class="debug-label">
-      <input type="checkbox" id="pyramid-toggle" /> ON
-    </label>
     <div style="display: flex; align-items: center; gap: 6px; margin-left: 12px;">
       <label for="pyramid-timeout" style="font-size: 12px; color: #9aa4c7;">Timeout (min)</label>
       <input id="pyramid-timeout" type="number" min="1" max="120" step="1" value="10" style="width: 50px; background: #0b1526; color: #e2e8f0; border: 1px solid #334155; border-radius: 4px; padding: 4px; font-size: 12px;" />
+    </div>
+    <div id="pyramid-view" style="display: flex; gap: 4px; margin-left: 12px; flex: 0 0 auto;">
+      <button id="pyramid-view-pyr" type="button" style="background: #1e3a5f; color: #e2e8f0; border: 1px solid #334155; border-radius: 4px; padding: 4px 10px; font-size: 12px; cursor: pointer;">Pyramid</button>
+      <button id="pyramid-view-map" type="button" style="background: #0b1526; color: #9aa4c7; border: 1px solid #334155; border-radius: 4px; padding: 4px 10px; font-size: 12px; cursor: pointer;">2D Map</button>
+      <select id="pyramid-map-select" style="display: none; background: #0b1526; color: #e2e8f0; border: 1px solid #334155; border-radius: 4px; padding: 4px; font-size: 12px;">
+        <option value="neweden">New Eden</option>
+        <option value="wormholes">Wormholes</option>
+        <option value="pochven">Pochven</option>
+      </select>
     </div>
   </header>
 
   <main id="app">
     <section class="panel">
       <div id="pyramid-off" style="color: #888; padding: 20px;">
-        Intel Map is OFF — zero tracking, zero load. Flip ON to light it up.
+        Intel Map is showing in the main window tab.
       </div>
       <div id="pyramid" style="display: none; overflow-y: auto; max-height: calc(100vh - 90px); padding: 8px;"></div>
+      <div id="pyramid-map" style="display: none; position: relative; width: 100%; height: calc(100vh - 90px); overflow: hidden; background: #0b1526;">
+        <canvas id="pyramid-map-canvas" style="position: absolute; inset: 0; width: 100%; height: 100%;"></canvas>
+        <div id="pyramid-map-hint" style="position: absolute; left: 10px; bottom: 8px; color: #475569; font-size: 11px; pointer-events: none;">scroll to zoom · drag to pan</div>
+      </div>
     </section>
   </main>
 
   <div id="pyramid-tip" style="display: none; position: fixed; z-index: 10; background: #0b1526; border: 1px solid #334155; color: #e2e8f0; padding: 4px 8px; font-size: 12px; border-radius: 4px; pointer-events: none;"></div>
 
   <script src="ui-pyramid-render.js"></script>
+  <script src="ui-map-render.js"></script>
   <script src="ui-pyramid.js"></script>
 </body>
 </html>

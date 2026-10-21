@@ -159,11 +159,31 @@ window.loadZkillSettings = function (settings) {
     if (rangeInput) rangeInput.value = settings.zkillStreamRange || 5;
     if (charFilter) charFilter.value = settings.zkillCharFilter || '';
     populateCharFilter();
-    poll();
-    if (!pollTimer) pollTimer = setInterval(poll, POLL_MS);
-    if (!charRefreshTimer) {
-        charRefreshTimer = setInterval(populateCharFilter, 30000);
+};
+
+// The gate owns the pollers. Previously this module started them the moment its
+// settings were loaded, which meant a hidden tab kept fetching kills forever.
+// setActive is the only thing that starts or stops them now, and the gate calls
+// it with false whenever the tab is not the one on screen.
+var zkillActive = false;
+
+function setZkillActive(on) {
+    on = !!on;
+    if (on === zkillActive) return;
+    zkillActive = on;
+    if (on) {
+        poll();
+        if (!pollTimer) pollTimer = setInterval(poll, POLL_MS);
+        if (!charRefreshTimer) charRefreshTimer = setInterval(populateCharFilter, 30000);
+        return;
     }
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    if (charRefreshTimer) { clearInterval(charRefreshTimer); charRefreshTimer = null; }
+}
+
+window.Zkill = {
+    setActive: setZkillActive,
+    isActive: function () { return zkillActive; },
 };
 
 function init() {

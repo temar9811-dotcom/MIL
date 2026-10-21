@@ -1,4 +1,4 @@
-# MRCHI Intel Lite — v1.1.6
+# MRCHI Intel Lite — v1.2.7
 
 ...
 
@@ -49,8 +49,25 @@ arrive. Packaged as a standard Windows installer.
 - **Bigger text mode** for tired eyes.
 - **No spam**: the same report from three people is one ping, not three.
 - **Reads intel like a human** — shorthand, nicknames and typos included.
+- **Clickable link alerts** — d-scan and adashboard links posted in intel raise
+  their own alert, and a reported pilot links straight to their zkillboard page
+  once their character is resolved.
+- **Time-stamped alerts** — every card shows the local time the report came in.
 
 ## Changelog
+
+### 1.2.7
+A "What's New" window now appears once after each update, so you can see what
+changed without hunting for it. Other Settings gained an "Install updates
+automatically" toggle: leave it on and updates install the moment they finish
+downloading, or switch it off to keep the hourly check and install from an
+"Update Now" button in the header when you choose.
+
+Two fixes came with it. Saving the Alert Settings tab used to write only its own
+fields, which quietly reset your theme, module switches and local-monitor
+settings to their defaults; it now saves alongside the rest. And the app stops
+its log watcher and tray cleanly before an installer takes over, instead of
+racing its own shutdown.
 
 ### 1.0.0
 First release. Watches EVE chat logs, alerts when hostiles are reported near
@@ -118,3 +135,28 @@ map every second for near-live tracking.
 Spring clean under the hood. The biggest code files were split into smaller
 modules (log reading, Intel Map feed, map drawing). No visible change — just
 easier to keep sharp.
+
+### 1.2.4
+Intel accuracy and links. Pilot names that contain numbers are no longer cut
+short, stray all-numeric or punctuation-only fragments are dropped, and
+several pilots listed in one report are split apart correctly instead of being
+merged into one.
+d-scan and adashboard links posted in intel now raise an alert on their own,
+reported pilots get a clickable zkillboard link once their character is
+resolved, alert cards show the local time a report came in, and any name that
+fails verification is written to a log so bad reports are easy to find.
+
+### 1.2.6
+Settings now persist. The app kept two settings files and read one while writing
+the other, so a restart could roll your choices (enabled modules, theme, tray
+behaviour, alert options) back to defaults. There is now a single settings file;
+an older install's second file is imported once, then ignored.
+
+The "Chat logs folder" setting now takes effect. It was saved but never read, so
+the app kept auto-detecting EVE's log folder instead of watching the one you
+picked. A folder you browse to is now used at startup and right after saving.
+
+### 1.2.5
+Intel Map fix. Dragging the 2D map now keeps the star-map background and the
+lit intel layer moving together. Before, grabbing the map slid the intel
+markers off the background and left the map out of position.

@@ -1,6 +1,6 @@
 {
   "name": "mrchi-intel-lite",
-  "version": "1.2.3-alpha",
+  "version": "1.2.7",
   "description": "EVE Online Intel Alert Tool",
   "main": "src/main/index.js",
   "scripts": {
@@ -21,13 +21,15 @@
   "build": {
     "appId": "com.mrchi.intel-lite",
     "productName": "MRCHI Intel Lite",
+    "icon": "assets/build/icon.png",
     "files": [
       "**/*",
       "!static.db",
       "!dist/",
       "!diag.js",
       "!test-sound.js",
-      "!extract-eve-data.js"
+      "!extract-eve-data.js",
+      "!extract-star-map.js"
     ],
     "win": {
       "target": "nsis"
@@ -37,7 +39,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "MRCHI Intel Lite"
+      "shortcutName": "MRCHI Intel Lite",
+      "artifactName": "MRCHI.Intel.Lite.Setup.${version}.${ext}"
     },
     "extraResources": [
       {

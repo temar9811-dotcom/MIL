@@ -1,4 +1,4 @@
-// MIL alerts v5 - primary char wins distance ties
+// MIL alerts v7 - carry links; pilot is data, label is display; carry raw line
 const { GROUPS } = require('./groups');
 
 const RED_COLOR = '#ef4444';
@@ -62,7 +62,30 @@ class Alerts {
   }
 
   evaluate(event) {
-    if (!event || !event.system) return null;
+    if (!event) return null;
+
+    const links = Array.isArray(event.links) ? event.links : [];
+    if (!event.system) {
+      if (!links.length) return null;
+      const now = Date.now();
+      const linkKey = 'link|' + links.slice().sort().join('|');
+      if (now - (this.cooldown.get(linkKey) || 0) < this.cooldownMs) return null;
+      this.cooldown.set(linkKey, now);
+      const pilot = event.pilot || null;
+      return {
+        type: 'soft',
+        color: SOFT_DEFAULT,
+        character: null,
+        jumps: null,
+        pilot,
+        label: pilot || 'D-scan link',
+        ship: event.ship || null,
+        system: null,
+        links,
+        linkOnly: !pilot,
+        raw: event.raw || null,
+      };
+    }
 
     const eventPing = this.enabledEventPing(event);
     const pilotLabel = event.pilot
@@ -122,9 +145,12 @@ class Alerts {
       color,
       character: best.char.name,
       jumps: best.jumps,
-      pilot: pilotLabel,
+      pilot: event.pilot || null,
+      label: pilotLabel,
       ship: event.ship || null,
       system: event.system,
+      links,
+      raw: event.raw || null,
     };
   }
 }

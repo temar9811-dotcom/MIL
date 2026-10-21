@@ -1,5 +1,5 @@
-// # FILE: src/main/index.js
-// # VERSION: 20
+// # FILE: src/main/engine/index.js
+// # VERSION: 22
 const { app } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -22,6 +22,7 @@ this.config = null;
 this.running = false;
 this.recentAlerts = [];
 this.onAlert = null;
+this.alertSeq = 0;
 this.seenMessages = new Map();
 this.registry = new CharacterRegistry(log);
 this.watcher = new ChatLogWatcher(log);
@@ -52,6 +53,7 @@ const list = JSON.parse(fs.readFileSync(p, 'utf8'));
 if (Array.isArray(list)) this.recentAlerts = list.slice(0, 50);
 }
 } catch (_) { /* corrupt history ignored */ }
+this.alertSeq = Math.max(0, ...this.recentAlerts.map((a) => a.id || 0));
 if (this.recentAlerts.length) {
 this.log.info(`Restored ${this.recentAlerts.length} alerts from history`);
 }
@@ -61,6 +63,10 @@ saveAlertHistory() {
 try {
 fs.writeFileSync(this.alertHistoryPath(), JSON.stringify(this.recentAlerts, null, 2));
 } catch (_) { /* never crash on saving */ }
+}
+
+nextAlertId() {
+return ++this.alertSeq;
 }
 
 clearAlerts() {
@@ -167,6 +173,8 @@ this.fireAlert(alert);
 }
 
 fireAlert(alert) {
+alert.id = this.nextAlertId();
+alert.time = Date.now();
 this.recentAlerts.unshift(alert);
 this.recentAlerts = this.recentAlerts.slice(0, 50);
 this.saveAlertHistory();
@@ -179,10 +187,25 @@ this.notifications.send(alert);
 if (this.onAlert) this.onAlert(alert);
 }
 
-setPyramid(on) { this.pyramid.setPyramid(on); }
+  // Alert raised outside the log pipeline (the local monitor), which has
+  // already made its own noise: record it and push it to the UI only.
+pushExternalAlert(alert) {
+alert.id = this.nextAlertId();
+alert.time = Date.now();
+this.recentAlerts.unshift(alert);
+    this.recentAlerts = this.recentAlerts.slice(0, 50);
+    this.saveAlertHistory();
+    this.log.alert(
+      `${(alert.type || 'soft').toUpperCase()} ${alert.character || ''} ${alert.system || ''} ${alert.pilot || ''}`.replace(/\s+/g, ' ').trim(),
+    );
+    if (this.onAlert) this.onAlert(alert);
+  }
+
+  setPyramid(on) { this.pyramid.setPyramid(on); }
 clearPyramid() { this.pyramid.clearPyramid(); }
 getPyramid() { return this.pyramid.getPyramid(); }
 setPyramidCenter(name) { this.pyramid.setPyramidCenter(name); }
+getMapLayout(kind) { return this.data.getMapLayoutPayload(kind); }
 
 stop() {
 this.watcher.stop();

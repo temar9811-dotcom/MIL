@@ -1,5 +1,8 @@
 <!-- # FILE: src/renderer/index.html -->
-<!-- # VERSION: 21 -->
+<!-- # VERSION: 24 -->
+<!-- index.html v24 - updater UI: header "Update Now" button and status, an
+     "Updates" section in Other Settings, the What's New dialog, and the
+     ui-updater.js script. -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -12,8 +15,10 @@
 </head>
 <body>
   <header>
-    <h1>MRCHI Intel Lite <span id="app-version" style="font-size:0.55em;color:#888;vertical-align:middle;">v1.2.0-Alpha</span></h1>
+    <h1>MRCHI Intel Lite <span id="app-version" style="font-size:0.55em;color:#888;vertical-align:middle;">v1.2.7</span></h1>
     <span id="engine-status" class="status">engine: starting…</span>
+    <span id="update-status" class="status" style="display:none;color:#9aa4c7;font-size:0.85em;margin-left:8px;"></span>
+    <button id="update-now" type="button" style="display:none;margin-left:8px;">Update Now</button>
   </header>
   <main id="app">
     <div class="columns">
@@ -21,15 +26,43 @@
       <div class="right-col">
         <div class="tab-bar">
           <button class="tab-btn active" data-tab="alerts">Alerts</button>
-          <button class="tab-btn" data-tab="zkill">Zkill</button>
+          <button class="tab-btn hidden" data-tab="intel-map">Intel Map</button>
+          <button class="tab-btn hidden" data-tab="zkill">Zkill</button>
+          <button class="tab-btn hidden" data-tab="local-monitor">Local Monitor</button>
           <button class="tab-btn" data-tab="alert-settings">Alert Settings</button>
           <button class="tab-btn" data-tab="watch-list">Watch List</button>
           <button class="tab-btn" data-tab="other-settings">Other Settings</button>
           <button class="tab-btn hidden" data-tab="debug" id="debug-tab-btn">Debug Log</button>
         </div>
         <div class="tab-content" id="alerts-panel">
-          <div class="debug-header"><h2>Alerts</h2><div style="display:flex;gap:6px;"><button id="clear-alerts" type="button">Clear</button><button id="popout-alerts" type="button">Pop out</button><button id="open-pyramid" type="button">Map</button></div></div>
+          <div class="debug-header"><h2>Alerts</h2><div style="display:flex;gap:6px;"><button id="clear-alerts" type="button">Clear</button><button id="popout-alerts" type="button">Pop out</button></div></div>
           <div id="alerts"></div>
+        </div>
+        <div class="tab-content" id="intel-map-panel" data-pyramid-host="tab" style="flex-direction:column;padding:12px;">
+          <div class="debug-header" style="display:flex;align-items:center;gap:8px;">
+            <h2 style="margin:0;">Intel Map</h2>
+            <select id="pyramid-center" style="background:#0b1526;color:#e2e8f0;border:1px solid #334155;border-radius:4px;padding:4px;font-size:12px;"></select>
+            <button id="pyramid-clear" type="button">Clear</button>
+            <label class="debug-label"><input type="checkbox" id="pyramid-fast" /> Intensive</label>
+            <span id="pyramid-fast-info" style="width:16px;height:16px;border-radius:50%;background:#334155;color:#e2e8f0;font-size:10px;display:inline-flex;align-items:center;justify-content:center;cursor:help;">i</span>
+            <div style="display:flex;align-items:center;gap:6px;"><label for="pyramid-timeout" style="font-size:12px;color:#9aa4c7;">Timeout (min)</label><input id="pyramid-timeout" type="number" min="1" max="120" step="1" value="10" style="width:50px;background:#0b1526;color:#e2e8f0;border:1px solid #334155;border-radius:4px;padding:4px;font-size:12px;" /></div>
+            <div id="pyramid-view" style="display:flex;gap:4px;">
+              <button id="pyramid-view-pyr" type="button" style="background:#1e3a5f;color:#e2e8f0;border:1px solid #334155;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;">Pyramid</button>
+              <button id="pyramid-view-map" type="button" style="background:#0b1526;color:#9aa4c7;border:1px solid #334155;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;">2D Map</button>
+              <select id="pyramid-map-select" style="display:none;background:#0b1526;color:#e2e8f0;border:1px solid #334155;border-radius:4px;padding:4px;font-size:12px;">
+                <option value="neweden">New Eden</option>
+                <option value="wormholes">Wormholes</option>
+                <option value="pochven">Pochven</option>
+              </select>
+            </div>
+            <button id="pyramid-popout" type="button" style="margin-left:auto;">Pop out</button>
+          </div>
+          <div id="pyramid-off" style="color:#888;padding:20px;display:none;"></div>
+          <div id="pyramid" style="display:none;overflow-y:auto;flex:1;padding:8px;"></div>
+          <div id="pyramid-map" style="display:none;position:relative;flex:1;min-height:420px;overflow:hidden;background:#0b1526;">
+            <canvas id="pyramid-map-canvas" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
+            <div id="pyramid-map-hint" style="position:absolute;left:10px;bottom:8px;color:#475569;font-size:11px;pointer-events:none;">scroll to zoom &middot; drag to pan</div>
+          </div>
         </div>
         <div class="tab-content" id="zkill-panel" style="flex-direction:column;padding:12px;">
           <h2 style="margin:0 0 12px 0;font-size:14px;text-transform:uppercase;letter-spacing:1px;color:#e94560;">Zkill</h2>
@@ -39,6 +72,58 @@
             <button id="zkill-save" type="button">Save</button><span id="zkill-save-state" style="font-size:0.85em;"></span>
           </div>
           <div id="zkill-list" style="flex:1;overflow-y:auto;border:1px solid #334155;border-radius:4px;padding:8px;background:#0b1526;"><p style="color:#888;margin:0;">Loading kills...</p></div>
+        </div>
+        <div class="tab-content" id="local-monitor-panel">
+          <h2 style="margin:0 0 12px 0;font-size:14px;text-transform:uppercase;letter-spacing:1px;color:#e94560;">Local Monitor</h2>
+          <div class="row lm-status-row">
+            <span id="lm-status">stopped</span>
+            <button id="lm-start" type="button">Start</button>
+            <button id="lm-test" type="button" title="Fire a test red alert">Test alarm</button>
+          </div>
+          <div class="lm-card-head"><strong>Alarm settings</strong></div>
+          <div class="row"><label for="lm-check-rate">Check interval</label><select id="lm-check-rate" style="width:100%;">
+            <option value="1">1x &mdash; every 250ms / 2-3s (default)</option>
+            <option value="2">2x slower &mdash; every 500ms / 4-6s</option>
+            <option value="5">5x slower &mdash; every 1250ms / 10-15s</option>
+            <option value="8">8x slower &mdash; every 2000ms / 16-24s</option>
+            <option value="10">10x slower &mdash; every 2500ms / 20-30s</option>
+          </select></div>
+          <div class="row"><label for="lm-threshold">Detection threshold</label><div style="display:flex;align-items:center;gap:8px;"><input id="lm-threshold" type="range" min="10" max="100" step="1" value="60" style="flex:1;" /><span id="lm-threshold-label" style="width:42px;">60</span></div></div>
+          <div class="row"><label for="lm-cooldown">Cooldown (seconds of quiet after 3 rapid triggers)</label><input id="lm-cooldown" type="number" min="0" step="1" value="60" /></div>
+          <div class="row checks"><label><input id="lm-mute" type="checkbox" /> Mute alarm sound</label></div>
+          <div class="lm-area-card" id="lm-area1">
+            <div class="lm-card-head"><strong>Local 1</strong><label class="lm-check"><input id="lm-en1" type="checkbox" /> enabled</label></div>
+            <div class="lm-actions">
+              <button id="lm-set1" type="button">Set area</button>
+              <button id="lm-snapshot1" type="button" title="Save a raw capture of this region to resources/local-monitor/snapshots">Snapshot</button>
+              <button id="lm-preview1" type="button">Preview</button>
+              <label class="lm-check"><input id="lm-boxes1" type="checkbox" /> Show boxes</label>
+            </div>
+            <div class="row lm-coords">
+              <label>x <input id="lm-a1-x" type="number" value="0" /></label>
+              <label>y <input id="lm-a1-y" type="number" value="0" /></label>
+              <label>x2 <input id="lm-a1-x2" type="number" value="0" /></label>
+              <label>y2 <input id="lm-a1-y2" type="number" value="0" /></label>
+            </div>
+            <div class="lm-hint" id="lm-hint1">Area not set — press "Set area" and drag a box over EVE Local.</div>
+          </div>
+          <div class="lm-area-card" id="lm-area2">
+            <div class="lm-card-head"><strong>Local 2</strong><label class="lm-check"><input id="lm-en2" type="checkbox" /> enabled</label></div>
+            <div class="lm-actions">
+              <button id="lm-set2" type="button">Set area</button>
+              <button id="lm-snapshot2" type="button" title="Save a raw capture of this region to resources/local-monitor/snapshots">Snapshot</button>
+              <button id="lm-preview2" type="button">Preview</button>
+              <label class="lm-check"><input id="lm-boxes2" type="checkbox" /> Show boxes</label>
+            </div>
+            <div class="row lm-coords">
+              <label>x <input id="lm-a2-x" type="number" value="0" /></label>
+              <label>y <input id="lm-a2-y" type="number" value="0" /></label>
+              <label>x2 <input id="lm-a2-x2" type="number" value="0" /></label>
+              <label>y2 <input id="lm-a2-y2" type="number" value="0" /></label>
+            </div>
+            <div class="lm-hint" id="lm-hint2">Area not set — press "Set area" and drag a box over EVE Local.</div>
+          </div>
+          <div class="row lm-save-row"><button id="lm-save" type="button">Save</button><span id="lm-save-state"></span></div>
         </div>
         <div class="tab-content" id="alert-settings-panel">
           <form id="settings-form">
@@ -80,6 +165,14 @@
             <div class="row checks"><label><input id="minimize-to-tray" type="checkbox" checked /> Minimize to tray</label></div>
             <div style="margin:14px 0 6px;color:#f43f5e;font-size:0.75em;letter-spacing:1px;text-transform:uppercase;">Debugging</div>
             <div class="row checks"><label><input type="checkbox" id="debug-toggle" /> Enable debug logging</label></div>
+            <div style="margin:14px 0 6px;color:#f43f5e;font-size:0.75em;letter-spacing:1px;text-transform:uppercase;">Modules</div>
+            <div class="row checks" style="flex-direction:column;align-items:flex-start;gap:8px;">
+              <label title="Intel Map, its tab and its pop-out window. Off means no tracking at all."><input type="checkbox" id="module-map" /> Intel Map</label>
+              <label title="Zkill feed and its tab."><input type="checkbox" id="module-zkill" /> Zkill</label>
+              <label title="Local Monitor. Off at startup; enabling it loads the monitor and shows its tab."><input type="checkbox" id="module-local" /> Local Monitor</label>
+            </div>
+            <div style="margin:14px 0 6px;color:#f43f5e;font-size:0.75em;letter-spacing:1px;text-transform:uppercase;">Updates</div>
+            <div class="row checks"><label title="MRCHI Intel Lite always checks for a new release once an hour. Turn this off to install updates only when you click Update Now in the header."><input type="checkbox" id="auto-install-updates" checked /> Install updates automatically</label></div>
             <div class="row" style="margin-top:16px;"><button id="save-other" type="submit">Save</button><span id="save-other-state"></span></div>
           </form>
         </div>
@@ -90,18 +183,29 @@
       </div>
     </div>
   </main>
+  <div id="changelog-dialog" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
+    <div style="background:#0b1526;border:1px solid #334155;border-radius:6px;max-width:640px;width:90%;max-height:80%;display:flex;flex-direction:column;padding:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <h2 id="changelog-title" style="margin:0;font-size:15px;color:#e2e8f0;">What's New</h2>
+        <button id="changelog-close" type="button">Close</button>
+      </div>
+      <div id="changelog-notes" style="flex:1;overflow-y:auto;white-space:pre-wrap;color:#cbd5e1;font-size:13px;line-height:1.45;"></div>
+    </div>
+  </div>
+  <div id="pyramid-tip" style="display:none;position:fixed;z-index:10;background:#0b1526;border:1px solid #334155;color:#e2e8f0;padding:4px 8px;font-size:12px;border-radius:4px;pointer-events:none;"></div>
   <script src="ui-watchlist.js"></script>
   <script src="ui-settings-groups.js"></script>
   <script src="ui-settings-alerts.js"></script>
   <script src="ui-settings-other.js"></script>
   <script src="ui-debug.js"></script>
-     <script src="ui-zkill-render.js"></script>
-   <script src="ui-zkill.js"></script>
-  <script src="zkill-data.js"></script>
-  <script src="zkill-api.js"></script>
-  <script src="ui-zkill.js"></script>
+  <script src="ui-alert-card.js"></script>
   <script src="ui-alerts.js"></script>
   <script src="ui-roster.js"></script>
+  <!-- Gated modules (Intel Map, Zkill, Local Monitor) are NOT loaded here.
+       module-gates.js injects a module's scripts only once it is enabled in
+       Other Settings and its tab is on screen. -->
+  <script src="module-gates.js"></script>
+  <script src="ui-updater.js"></script>
   <script src="ui-tabs.js"></script>
   <script src="renderer.js"></script>
 </body>

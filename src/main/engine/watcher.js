@@ -1,4 +1,4 @@
-// MIL watcher v14 - forced polling for Windows game logs + copy-paste filter
+// MIL watcher v15 - forced polling for Windows game logs + copy-paste filter
 const { app } = require('electron');
 const fs = require('fs');
 const path = require('path');
@@ -282,6 +282,7 @@ class ChatLogWatcher {
       channelName: meta.channel,
       characterName: meta.character,
       filePath,
+      raw: line,
     };
   }
 

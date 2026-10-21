@@ -1,5 +1,5 @@
 // # FILE: src/renderer/renderer.js
-// # VERSION: 17
+// # VERSION: 19
 const statusEl = document.getElementById('engine-status');
 const versionEl = document.getElementById('app-version');
 const dockedAlerts = document.getElementById('alerts');
@@ -26,31 +26,15 @@ function appendDebugSafe(level, msg) {
   if (typeof window.appendDebug === 'function') window.appendDebug(level, msg);
 }
 
-function makeAlertCard(data) {
-  const el = document.createElement('div');
-  el.className = `alert alert-${data && data.type === 'red' ? 'red' : 'soft'}`;
-  const parts = [
-    data.character || '?',
-    data.jumps == null ? '?' : `${data.jumps} jumps`,
-    data.system || '?',
-    data.pilot || '?',
-  ];
-  if (data.ship) parts.push(data.ship);
-  const line = parts.join(' > ');
-  el.textContent = line;
-  el.title = line;
-  el.style.whiteSpace = 'nowrap';
-  el.style.overflow = 'hidden';
-  el.style.textOverflow = 'ellipsis';
-  if (data && data.color) {
-    el.style.borderLeft = `4px solid ${data.color}`;
-  }
-  return el;
+function dockedPatchAlert(id, data) {
+  if (!dockedAlerts || id == null) return;
+  const el = dockedAlerts.querySelector(`[data-alert-id="${id}"]`);
+  if (el) window.alertCard.patch(el, data);
 }
 
 function dockedAddAlert(data) {
   if (!dockedAlerts || !data) return;
-  dockedAlerts.insertBefore(makeAlertCard(data), dockedAlerts.firstChild);
+  dockedAlerts.insertBefore(window.alertCard.make(data), dockedAlerts.firstChild);
   while (dockedAlerts.children.length > 50) {
     dockedAlerts.removeChild(dockedAlerts.lastChild);
   }
@@ -60,7 +44,7 @@ function dockedRenderHistory(list) {
   if (!dockedAlerts || !Array.isArray(list)) return;
   dockedAlerts.innerHTML = '';
   for (let i = list.length - 1; i >= 0; i--) {
-    dockedAlerts.insertBefore(makeAlertCard(list[i]), dockedAlerts.firstChild);
+    dockedAlerts.insertBefore(window.alertCard.make(list[i]), dockedAlerts.firstChild);
   }
 }
 
@@ -75,6 +59,7 @@ async function init() {
     if (typeof window.loadAlertSettings === 'function') window.loadAlertSettings(settings);
     if (typeof window.loadOtherSettings === 'function') window.loadOtherSettings(settings);
     if (typeof window.loadZkillSettings === 'function') window.loadZkillSettings(settings);
+    if (typeof window.loadLocalMonitorSettings === 'function') window.loadLocalMonitorSettings(settings);
     if (typeof window.loadWatchlistSettings === 'function') window.loadWatchlistSettings(settings);
     if (typeof window.updateDebugTabVisibility === 'function') {
       window.updateDebugTabVisibility();
@@ -105,4 +90,7 @@ if (window.electronAPI) {
     }
   });
   window.electronAPI.onAlert((alert) => dockedAddAlert(alert));
+  if (window.electronAPI.onAlertUpdated) {
+    window.electronAPI.onAlertUpdated((alert) => dockedPatchAlert(alert && alert.id, alert));
+  }
 }

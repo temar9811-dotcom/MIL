@@ -1,5 +1,9 @@
 // # FILE: src/renderer/ui-settings-core.js
-// # VERSION: 2
+// # VERSION: 3
+// v3 - this form used to save a partial payload assembled from its own fields
+// alone, which sent every key it does not own (theme, module gates, updater
+// keys, local-monitor settings) back to its default. It now merges the live
+// settings under its own values, like the other settings forms.
 
 const settingsForm = document.getElementById('settings-form');
 const logPathInput = document.getElementById('log-path') || document.getElementById('logs-dir');
@@ -92,7 +96,7 @@ if (settingsForm) {
     const notifOn = notificationCheckbox ? notificationCheckbox.checked : true;
     const eventSettings = typeof window.collectEventSettings === 'function' ? window.collectEventSettings() : {};
 
-    const settings = {
+    const own = {
       logPath: logPathInput ? logPathInput.value : '',
       proximityRange: proximityInput ? parseInt(proximityInput.value) || 2 : 2,
       intelChannels: channelsInput ? channelsInput.value : '',
@@ -114,6 +118,17 @@ if (settingsForm) {
       softSoundPath: eventSettings.softSoundPath || '',
       watchList: typeof window.getWatchListData === 'function' ? window.getWatchListData() : []
     };
+
+    // Merge over the live settings so a key this form does not own keeps its
+    // stored value. Falling back to `own` alone would silently reset theme,
+    // the module gates, `autoInstallUpdates` and every local-monitor key.
+    let existing = {};
+    try {
+      if (window.electronAPI && window.electronAPI.getSettings) {
+        existing = await window.electronAPI.getSettings();
+      }
+    } catch (_) {}
+    const settings = { ...existing, ...own };
 
     try {
       if (!window.electronAPI || !window.electronAPI.saveSettings) {

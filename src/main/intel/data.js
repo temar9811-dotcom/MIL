@@ -1,7 +1,9 @@
-// MIL data v2 - systemsWithin BFS for the Intel Map
+// MIL data v3 - systemsWithin BFS + per-map 2D layouts for the Intel Map
 const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
+
+const MAP_KINDS = ['neweden', 'wormholes', 'pochven'];
 
 class IntelData {
   constructor(log) {
@@ -9,6 +11,8 @@ class IntelData {
     this.adjacency = new Map();
     this.ships = [];
     this.systemNames = [];
+    this.map = null;
+    this.mapLayouts = {};
     this.load();
   }
 
@@ -43,6 +47,16 @@ class IntelData {
       this.log.info(`Loaded ${this.ships.length} ships`);
     } catch (err) {
       this.log.error(`ships.json load failed: ${err.message}`);
+    }
+    try {
+      const mapPath = path.join(this.dataDir(), 'map.json');
+      this.map = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+      const maps = this.map.maps || {};
+      const sizes = MAP_KINDS.map((k) => (maps[k] ? `${k}=${maps[k].systems.length}/${maps[k].regions.length}` : `${k}=missing`)).join(' ');
+      this.log.info(`Loaded star map (${sizes})`);
+    } catch (err) {
+      this.log.error(`map.json load failed: ${err.message}`);
+      this.map = null;
     }
   }
 
@@ -97,6 +111,92 @@ class IntelData {
       if (okB && okA) return name;
     }
     return null;
+  }
+
+  // Flat 2D galaxy maps for the Intel Map's map view: one per kind
+  // ('neweden', 'wormholes', 'pochven'), built lazily from map.json +
+  // systems.json adjacency, delivered to the renderer as tightly-packed
+  // structured-clone arrays.
+  buildMapLayout(kind) {
+    const key = MAP_KINDS.includes(kind) ? kind : 'neweden';
+    if (this.mapLayouts[key]) return this.mapLayouts[key];
+    const map = (this.map && this.map.maps) ? this.map.maps[key] : null;
+    this.mapLayouts[key] = {
+      ok: false,
+      error: null,
+      reason: 'missing map.json',
+    };
+    if (!map) return this.mapLayouts[key];
+
+    try {
+      const regionOf = new Map();
+      for (const r of map.regions) regionOf.set(r.id, r);
+
+      const nameIdx = new Map();
+      const names = [];
+      const ax = [];
+      const ay = [];
+      const region = [];
+      const sec = [];
+      for (const s of map.systems) {
+        const rg = regionOf.get(s.r);
+        if (!rg) continue;
+        nameIdx.set(s.n, names.length);
+        names.push(s.n);
+        ax.push(rg.x + s.u);
+        ay.push(rg.y + s.v);
+        region.push(map.regions.indexOf(rg));
+        sec.push(s.s);
+      }
+
+      const edges = [];
+      for (let i = 0; i < names.length; i++) {
+        for (const n of this.adjacency.get(names[i]) || []) {
+          const j = nameIdx.get(n);
+          if (j != null && j > i) {
+            edges.push(i, j);
+          }
+        }
+      }
+
+      this.mapLayouts[key] = {
+        ok: true,
+        error: null,
+        w: map.width,
+        h: map.height,
+        names,
+        x: Int32Array.from(ax),
+        y: Int32Array.from(ay),
+        region: Int32Array.from(region),
+        sec: Uint8Array.from(sec),
+        regionNames: map.regions.map((r) => r.name),
+        regionCenters: Int32Array.from(map.regions.flatMap((r) => [r.x + (r.w >> 1), r.y + (r.h >> 1)])),
+        edges: Int32Array.from(edges),
+      };
+      this.log.info(`Star map layout ready (${key}: ${names.length} systems, ${edges.length / 2} edges)`);
+    } catch (err) {
+      this.log.error(`buildMapLayout(${key}) failed: ${err.message}`);
+      this.mapLayouts[key] = { ok: false, error: err.message, reason: 'build failed' };
+    }
+    return this.mapLayouts[key];
+  }
+
+  getMapLayoutPayload(kind) {
+    const lay = this.buildMapLayout(kind);
+    if (!lay.ok) return { ok: false, error: lay.error || lay.reason };
+    return {
+      ok: true,
+      w: lay.w,
+      h: lay.h,
+      names: lay.names,
+      x: lay.x,
+      y: lay.y,
+      region: lay.region,
+      sec: lay.sec,
+      regionNames: lay.regionNames,
+      regionCenters: lay.regionCenters,
+      edges: lay.edges,
+    };
   }
 
   jumpsBetween(a, b) {

@@ -1,29 +1,12 @@
-// MIL ui-alerts v9 - Map button opens the Intel Map pop-out
+// MIL ui-alerts v10 - shared alert card; live patch on alert-updated
 const alertsList = document.getElementById('alerts');
 const popoutBtn = document.getElementById('popout-alerts');
 const clearBtn = document.getElementById('clear-alerts');
-const mapBtn = document.getElementById('open-pyramid');
 
-function makeCard(data) {
-  const el = document.createElement('div');
-  el.className = `alert alert-${data && data.type === 'red' ? 'red' : 'soft'}`;
-  const parts = [
-    data.character || '?',
-    data.jumps == null ? '?' : `${data.jumps} jumps`,
-    data.system || '?',
-    data.pilot || '?',
-  ];
-  if (data.ship) parts.push(data.ship);
-  const line = parts.join(' > ');
-  el.textContent = line;
-  el.title = line;
-  el.style.whiteSpace = 'nowrap';
-  el.style.overflow = 'hidden';
-  el.style.textOverflow = 'ellipsis';
-  if (data && data.color) {
-    el.style.borderLeft = `4px solid ${data.color}`;
-  }
-  return el;
+function patchAlert(id, data) {
+  if (!alertsList || id == null) return;
+  const el = alertsList.querySelector(`[data-alert-id="${id}"]`);
+  if (el) window.alertCard.patch(el, data);
 }
 
 function trimList() {
@@ -34,7 +17,7 @@ function trimList() {
 
 window.addAlert = (data) => {
   if (!alertsList || !data) return;
-  alertsList.insertBefore(makeCard(data), alertsList.firstChild);
+  alertsList.insertBefore(window.alertCard.make(data), alertsList.firstChild);
   trimList();
 };
 
@@ -42,7 +25,7 @@ window.renderAlertHistory = (list) => {
   if (!alertsList || !Array.isArray(list)) return;
   alertsList.innerHTML = '';
   for (let i = list.length - 1; i >= 0; i--) {
-    alertsList.insertBefore(makeCard(list[i]), alertsList.firstChild);
+    alertsList.insertBefore(window.alertCard.make(list[i]), alertsList.firstChild);
   }
 };
 
@@ -66,14 +49,12 @@ if (clearBtn) {
   });
 }
 
-if (mapBtn) {
-  mapBtn.addEventListener('click', () => {
-    if (window.electronAPI && window.electronAPI.openPyramid) {
-      window.electronAPI.openPyramid();
-    }
-  });
-}
-
 if (window.electronAPI && window.electronAPI.onAlertsCleared) {
   window.electronAPI.onAlertsCleared(() => window.clearAlerts());
+}
+
+// This script loads in both windows; the docked tab is patched by renderer.js,
+// so only the pop-out (which has no engine-status element) subscribes here.
+if (!document.getElementById('engine-status') && window.electronAPI && window.electronAPI.onAlertUpdated) {
+  window.electronAPI.onAlertUpdated((data) => patchAlert(data && data.id, data));
 }
