@@ -1,0 +1,99 @@
+<!-- Local Monitor overlay — transparent fullscreen region picker (shared preload only) -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
+  <title>Select region</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.3);
+      cursor: crosshair;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    #rect {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 0;
+      height: 0;
+      border: 2px solid #ff3b30;
+      background: rgba(255, 59, 48, 0.25);
+      box-sizing: border-box;
+      pointer-events: none;
+      display: none;
+    }
+    #hint {
+      position: fixed;
+      left: 50%;
+      top: 20px;
+      transform: translateX(-50%);
+      padding: 8px 16px;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      font: 13px/1.4 system-ui, sans-serif;
+      border-radius: 6px;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div id="hint">Drag to select a region &#183; Esc to cancel</div>
+  <div id="rect"></div>
+  <script>
+    var api = window.electronAPI;
+    var rectEl = document.getElementById('rect');
+    var start = null;
+
+    function applyRect(ax, ay, bx, by) {
+      var x0 = Math.min(ax, bx);
+      var y0 = Math.min(ay, by);
+      var x1 = Math.max(ax, bx);
+      var y1 = Math.max(ay, by);
+      rectEl.style.left = x0 + 'px';
+      rectEl.style.top = y0 + 'px';
+      rectEl.style.width = (x1 - x0) + 'px';
+      rectEl.style.height = (y1 - y0) + 'px';
+      rectEl.style.display = 'block';
+      return { x0: x0, y0: y0, x1: x1, y1: y1 };
+    }
+
+    window.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      start = { x: e.clientX, y: e.clientY };
+      try { document.body.setPointerCapture(e.pointerId); } catch (_) { /* noop */ }
+      applyRect(start.x, start.y, start.x, start.y);
+    });
+
+    window.addEventListener('pointermove', function (e) {
+      if (!start) return;
+      applyRect(start.x, start.y, e.clientX, e.clientY);
+    });
+
+    window.addEventListener('pointerup', function (e) {
+      if (!start) return;
+      var rect = applyRect(start.x, start.y, e.clientX, e.clientY);
+      start = null;
+      if (api && api.setOverlayRect) api.setOverlayRect(rect);
+    });
+
+    window.addEventListener('pointercancel', function () {
+      start = null;
+    });
+
+    window.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && api && api.cancelOverlay) api.cancelOverlay();
+    });
+
+    window.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  </script>
+</body>
+</html>
