@@ -403,25 +403,64 @@ body.big-text #save-state, body.big-text #save-other-state { font-size: 14px; }
   border: none;
 }
 
-/* The cards carry their own fill so they stay readable once the panel behind
-   them is see-through. The renderer builds class "alert alert-red" /
-   "alert alert-soft"; the older .alert-row rules this mirrors were never
-   matched by anything. */
+/* The cards are transparent like the rest of the window so the game shows
+   through, and the type colour carries the meaning instead: red text for a
+   red alert, amber for a soft one. The renderer builds class
+   "alert alert-red" / "alert alert-soft"; the older .alert-row rules this
+   mirrors were never matched by anything. */
 .alerts-window .alert {
-  color: #e0e0e0;
+  background: transparent;
+  border-left: none;
   border-radius: 4px;
-  padding: 8px 10px;
-  margin-bottom: 6px;
+  padding: 4px 2px;
+  margin-bottom: 2px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
 }
 
 .alerts-window .alert-red {
-  background: #3a1218;
-  border-left: 4px solid #e94560;
+  color: #ff6b81;
 }
 
 .alerts-window .alert-soft {
+  color: #f0b429;
+}
+
+/* Solid mode: the "Transparent" checkbox is off. The window is still created
+   transparent (Electron cannot change that at runtime), so this puts the opaque
+   chrome back: a filled body, a titled header and the original card fills with
+   their type colours, since the coloured text above only reads well when the
+   game is showing through behind it. */
+.alerts-window.alerts-solid {
+  background: #1a1a2e;
+}
+
+.alerts-window.alerts-solid header {
+  background: #16213e;
+  border-bottom: 1px solid #0f3460;
+}
+
+.alerts-window.alerts-solid .panel {
+  background: #1a1a2e;
+}
+
+.alerts-window.alerts-solid .alert {
+  background: rgba(15, 52, 96, 0.35);
+  border-left: 4px solid #0f3460;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  text-shadow: none;
+}
+
+.alerts-window.alerts-solid .alert-red {
+  color: #ffffff;
+  background: #3a1218;
+  border-left-color: #e94560;
+}
+
+.alerts-window.alerts-solid .alert-soft {
+  color: #ffffff;
   background: #332b12;
-  border-left: 4px solid #e0a520;
+  border-left-color: #e0a520;
 }
 
 .win-close {

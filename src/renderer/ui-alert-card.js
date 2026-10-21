@@ -77,7 +77,7 @@
 
     if (data.time) {
       var t = span(new Date(data.time).toLocaleTimeString([], { hour12: false }));
-      t.style.color = '#9aa4c7';
+      t.style.opacity = '0.7';
       t.style.fontSize = '11px';
       t.style.marginRight = '8px';
       el.appendChild(t);

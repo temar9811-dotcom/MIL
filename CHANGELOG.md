@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.8
+
+### Features
+
+- **The Intel Map opens as a 2D map** — the pop-out and its tab now start on the 2D star map instead of the pyramid. Switch back to the pyramid any time with the view toggle.
+- **See-through alerts pop-out** — the alerts window can now float over the game with only its text showing, so nothing is hidden behind a solid panel. A new **Transparent** checkbox in the pop-out, beside **Always on top**, switches it on or off, and your choice is remembered.
+
+### Fixes
+
+- **The pyramid looks like a pyramid again** — each row is now drawn at its true share of the widest row, so the shape tapers from a single system at the top to the full range at the bottom. Rows had been floored at their own width, which flattened the whole thing into a near-rectangle.
+- **"Always on top" in the alerts pop-out actually works** — the checked state was never passed through to the window, so re-enabling it after unchecking did nothing.
+- **Alert cards read correctly on a see-through window** — the red and soft fills were never being applied, so the text sat on whatever was behind it. Alerts are now coloured by type: red text for red alerts, amber for soft ones.
+
 ## 1.2.7
 
 ### Features

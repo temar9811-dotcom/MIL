@@ -1,4 +1,4 @@
-# MRCHI Intel Lite — v1.2.7
+# MRCHI Intel Lite — v1.2.8
 
 ...
 
@@ -42,8 +42,12 @@ arrive. Packaged as a standard Windows installer.
   you prefer), and forgets people when they log off.
 - **Character list** showing who's online and which system they're in.
 - **Pop-out alerts window** you can drag to a second monitor and keep on top.
+- **See-through pop-out**: float the alerts window over the game with only the
+  text showing — a **Transparent** toggle sits beside **Always on top**, and
+  your choice is remembered.
 - **Intel Map**: a pyramid of every system in range that lights up when intel
   lands in it; hover any system for the full report. Costs nothing when off.
+  Opens as a 2D star map by default, with a one-click switch to the pyramid.
 - **Separate volumes and your own custom sounds** for red and soft alerts.
 - **Remembers your last 50 alerts** across restarts, with a Clear button.
 - **Bigger text mode** for tired eyes.
@@ -55,6 +59,19 @@ arrive. Packaged as a standard Windows installer.
 - **Time-stamped alerts** — every card shows the local time the report came in.
 
 ## Changelog
+
+### 1.2.8
+Map view and see-through alerts. The Intel Map now opens as a 2D star map
+instead of the pyramid, switchable any time with the view toggle. The alerts
+pop-out gained a "Transparent" checkbox beside "Always on top" so it can float
+over the game with only its text showing, and the choice is remembered.
+
+Three fixes came with it. The pyramid tapers properly again — rows had been
+floored at their own width, flattening the shape into a near-rectangle. The
+"Always on top" checkbox in the pop-out now actually works, having never passed
+its state through to the window. And alert cards are coloured by type (red text
+for red alerts, amber for soft) so they read correctly on the see-through
+window, where their fills were never being applied.
 
 ### 1.2.7
 A "What's New" window now appears once after each update, so you can see what

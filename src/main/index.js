@@ -1,5 +1,8 @@
 // # FILE: src/main/index.js
-// # VERSION: 22
+// # VERSION: 23
+// MIL main v23 - the alerts pop-out gains a persisted transparency toggle
+// (`set-alerts-transparent`), and `set-always-on-top` now honours the value it
+// is sent - the preload had been dropping it, so that checkbox never worked.
 // MIL main v22 - updater rewritten to the ESP model: hourly check, changelog
 // popup, `autoInstallUpdates` on/off setting, dotted installer names, and an
 // explicit pre-install shutdown so the engine never outlives the quit.
@@ -352,7 +355,21 @@ app.whenReady().then(() => {
 
   ipcMain.handle('set-always-on-top', (_, on) => {
     if (alertsWindow) alertsWindow.setAlwaysOnTop(!!on);
-    return { ok: true };
+    return { ok: true, on: !!on };
+  });
+
+  // Transparency cannot be changed on a live window - Electron only takes it at
+  // construction - so the window is always created transparent and this swaps
+  // its chrome between see-through and solid by flipping a body class in the
+  // renderer. The choice is persisted so it survives a reopen.
+  ipcMain.handle('set-alerts-transparent', (_, on) => {
+    const value = !!on;
+    config = normalizeConfig({ ...config, alertsTransparent: value });
+    saveConfig(config);
+    if (alertsWindow && !alertsWindow.isDestroyed()) {
+      alertsWindow.webContents.send('alerts-transparent', value);
+    }
+    return { ok: true, on: value };
   });
 
   ipcMain.handle('set-pyramid-top', (_, on) => {

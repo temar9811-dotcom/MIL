@@ -1,5 +1,7 @@
 // # FILE: src/preload/index.js
-// # VERSION: 19
+// # VERSION: 20
+// preload v20 - the alerts pop-out's transparency toggle, plus the fix that
+// lets `setAlwaysOnTop` actually pass its argument through (v19 dropped it).
 // preload v19 - updater surface: status polling, download/dismiss/fire-now,
 // changelog fetch and close, and the push listeners that drive the dialog.
 
@@ -33,7 +35,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   browseWav: () => ipcRenderer.invoke('browse-wav'),
   popoutAlerts: () => ipcRenderer.invoke('popout-alerts'),
   clearAlerts: () => ipcRenderer.invoke('clear-alerts'),
-  setAlwaysOnTop: (on) => ipcRenderer.invoke('set-always-on-top'),
+  setAlwaysOnTop: (on) => ipcRenderer.invoke('set-always-on-top', on),
+  setAlertsTransparent: (on) => ipcRenderer.invoke('set-alerts-transparent', on),
+  onAlertsTransparent: (cb) => ipcRenderer.on('alerts-transparent', (event, on) => cb(on)),
   processZkillKill: (kill) => ipcRenderer.invoke('process-zkill-kill', kill),
   localMonitorStatus: () => ipcRenderer.invoke('local-monitor-status'),
   localMonitorStart: () => ipcRenderer.invoke('local-monitor-start'),

@@ -1,5 +1,7 @@
 // # FILE: src/main/config.js
-// # VERSION: 12
+// # VERSION: 13
+// MIL config v13 - adds `alertsTransparent`, the alerts pop-out's see-through
+// toggle, so the choice persists across a reopen (SETTINGS_VERSION 10).
 // MIL config v12 - one settings store: config.json (v10), plus the chat-log
 // folder bridge: the UI writes `logPath`, the engine watches `logsDirectory`,
 // so normalizeConfig() derives the engine key from the UI key. v12 adds the
@@ -21,7 +23,7 @@ const DEFAULTS = {
 };
 
 // Bump by 1 whenever SETTINGS_DEFAULTS gains or loses a key.
-const SETTINGS_VERSION = 9;
+const SETTINGS_VERSION = 10;
 
 // How much slower the local monitor runs, as an exclusive multiplier.
 // Every gated module defaults to off, so a fresh install loads only the log
@@ -74,6 +76,11 @@ const SETTINGS_DEFAULTS = {
   // is stamped by the changelog popup so it shows once per version.
   autoInstallUpdates: true,
   lastSeenVersion: '',
+  // The alerts pop-out is created transparent so it can float over the game.
+  // This decides whether its chrome stays that way (desktop shows through) or
+  // is filled in solid - the window itself is always constructed transparent,
+  // since Electron cannot change that at runtime.
+  alertsTransparent: true,
 };
 
 function configPath() {
