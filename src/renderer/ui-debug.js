@@ -1,5 +1,7 @@
 // # FILE: src/renderer/ui-debug.js
-// # VERSION: 1
+// # VERSION: 2
+// ui-debug v2 - the Debug tab gains an "Export Logs" button that copies the
+// non-alert log and the unverified-pilot log into Documents.
 
 /**
  * Isolated, defensive debug-log UI module.
@@ -14,6 +16,7 @@
   var panel = null;
   var tabBtn = null;
   var clearBtn = null;
+  var exportBtn = null;
   var toggle = null;
 
   /* ---- internal helpers ---- */
@@ -22,11 +25,31 @@
     panel   = document.getElementById('debug-panel');
     tabBtn  = document.getElementById('debug-tab-btn');
     clearBtn = document.getElementById('clear-debug');
+    exportBtn = document.getElementById('export-logs');
     toggle  = document.getElementById('debug-toggle');
 
     if (clearBtn) {
       clearBtn.addEventListener('click', function () {
         if (panel) panel.textContent = '';
+      });
+    }
+
+    if (exportBtn) {
+      exportBtn.addEventListener('click', function () {
+        exportBtn.disabled = true;
+        Promise.resolve(window.electronAPI && window.electronAPI.exportLogs())
+          .then(function (res) {
+            exportBtn.disabled = false;
+            if (res && res.ok) {
+              window.appendDebug('INFO', 'Logs exported to ' + res.dir);
+            } else {
+              window.appendDebug('ERROR', 'Export failed: ' + ((res && res.error) || 'unknown error'));
+            }
+          })
+          .catch(function (err) {
+            exportBtn.disabled = false;
+            window.appendDebug('ERROR', 'Export failed: ' + (err && err.message ? err.message : err));
+          });
       });
     }
 

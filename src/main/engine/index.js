@@ -1,5 +1,7 @@
 // # FILE: src/main/engine/index.js
-// # VERSION: 22
+// # VERSION: 23
+// MIL engine v23 - lines that reach the pipeline but produce no alert (and are
+// not merely out of range) are appended to non-alerts.log via NonAlertLog.
 const { app } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -9,6 +11,7 @@ const { IntelData } = require('../intel/data');
 const { IntelParser } = require('../intel/parser');
 const { IntelTracker } = require('../intel/tracker');
 const { Alerts } = require('../intel/alerts');
+const { NonAlertLog } = require('../intel/non-alert-log');
 const { TimeFilter } = require('../intel/timeFilter');
 const { PyramidFeed } = require('./pyramid');
 const { SoundPlayer } = require('../sounds');
@@ -30,6 +33,7 @@ this.data = new IntelData(log);
 this.parser = new IntelParser(this.data, log);
 this.tracker = new IntelTracker(log);
 this.alerts = new Alerts({ presence: this.registry, data: this.data, log });
+this.nonAlertLog = new NonAlertLog({ cachePath: path.join(app.getPath('userData'), 'pilots.json') });
 this.timeFilter = new TimeFilter();
 this.sounds = new SoundPlayer(log);
 this.notifications = new NotificationSender(log);
@@ -136,17 +140,30 @@ if (!this.timeFilter.isFresh(msg.timestamp, 5)) return;
 if (this.isDuplicate(msg)) return;
 this.log.parse(`[${msg.channelName}] ${msg.author}: ${msg.message}`);
 const events = this.parser.parse(msg) || [];
-for (const event of events) {
-if (event.pilot && this.registry.get(event.pilot)) continue;
-this.tracker.record(event);
-this.pyramid.recordSystemIntel(event);
-this.log.parse(
-`INTEL pilot=${event.pilot || '?'} count=${event.count || '?'}` +
-`ship=${event.ship || '?'} system=${event.system || '?'}`,
-);
-const alert = this.alerts.evaluate(event);
-if (alert) this.fireAlert(alert);
+if (!events.length) {
+  // Understood as a chat line but made nothing of: no pilot, system, ship,
+  // count, activity ping or link. Record the raw line for offline review.
+  this.nonAlertLog.append(msg.raw);
+  return;
 }
+let firedAlert = false;
+let sawOutOfRange = false;
+for (const event of events) {
+  if (event.pilot && this.registry.get(event.pilot)) continue;
+  this.tracker.record(event);
+  this.pyramid.recordSystemIntel(event);
+  this.log.parse(
+    `INTEL pilot=${event.pilot || '?'} count=${event.count || '?'}` +
+    `ship=${event.ship || '?'} system=${event.system || '?'}`,
+  );
+  const reason = { outOfRange: false };
+  const alert = this.alerts.evaluate(event, reason);
+  if (alert) { this.fireAlert(alert); firedAlert = true; }
+  else if (reason.outOfRange) sawOutOfRange = true;
+}
+// No alert was raised. A report that was merely out of range is not a parse
+// failure and is left out; anything else counts as a line we did not alert on.
+if (!firedAlert && !sawOutOfRange) this.nonAlertLog.append(msg.raw);
 }
 
 processZkillKill(kill) {

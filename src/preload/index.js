@@ -1,5 +1,6 @@
 // # FILE: src/preload/index.js
-// # VERSION: 20
+// # VERSION: 21
+// preload v21 - exposes `exportLogs()` for the Debug tab's Export Logs button.
 // preload v20 - the alerts pop-out's transparency toggle, plus the fix that
 // lets `setAlwaysOnTop` actually pass its argument through (v19 dropped it).
 // preload v19 - updater surface: status polling, download/dismiss/fire-now,
@@ -55,6 +56,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onEngineState: (cb) => ipcRenderer.on('engine-state', (event, data) => cb(data)),
   onIntelMapPopout: (cb) => ipcRenderer.on('intel-map-popout', (event, open) => cb(open)),
   toggleDebug: (on) => ipcRenderer.invoke('toggle-debug', on),
+  exportLogs: () => ipcRenderer.invoke('export-logs'),
   // --- updater -------------------------------------------------------------
   getUpdaterStatus: () => ipcRenderer.invoke('updater:status'),
   fireUpdaterNow: () => ipcRenderer.invoke('updater:fireNow'),

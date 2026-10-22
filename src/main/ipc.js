@@ -1,5 +1,7 @@
 // # FILE: src/main/ipc.js
-// # VERSION: 13
+// # VERSION: 14
+// MIL ipc v14 - `export-logs`: copies non-alerts.log and unverified-pilots.log
+// from userData into a timestamped folder under the user's Documents.
 // MIL ipc v13 - updater IPC (changelog, status, download, dismiss) and a
 // live re-apply when `autoInstallUpdates` is saved.
 
@@ -141,6 +143,63 @@ function registerIpc(configApi, engine, log, localMonitor, appUpdater) {
     else log.disable();
     log.info(`Debug toggled: ${enabled}`);
     return { debug: log.isEnabled() };
+  });
+
+  // --- export diagnostics ---------------------------------------------------
+  // Copy the non-alert log and the unverified-pilot log into Documents so the
+  // user can hand them over. A timestamped folder keeps repeat exports from
+  // overwriting each other. Both files live beside pilots.json in userData.
+  const documentsCandidates = () => {
+    const docs = [];
+    try { docs.push(app.getPath('documents')); } catch (_) { /* not ready */ }
+    if (process.env.OneDrive) docs.push(path.join(process.env.OneDrive, 'Documents'));
+    if (process.env.OneDriveDocuments) docs.push(process.env.OneDriveDocuments);
+    if (process.env.USERPROFILE) docs.push(path.join(process.env.USERPROFILE, 'Documents'));
+    return [...new Set(docs.filter(Boolean))];
+  };
+
+  const documentsDir = () => {
+    for (const d of documentsCandidates()) {
+      try {
+        if (fs.existsSync(d)) return d;
+      } catch (_) { /* try the next candidate */ }
+    }
+    try { return app.getPath('documents'); } catch (_) { return null; }
+  };
+
+  ipcMain.handle('export-logs', () => {
+    try {
+      const docs = documentsDir();
+      if (!docs) return { ok: false, error: 'Could not find your Documents folder' };
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      let dir = path.join(docs, `MRCHI Intel Logs ${stamp}`);
+      // A second export inside the same second must not reuse the folder.
+      for (let n = 2; fs.existsSync(dir); n++) {
+        dir = path.join(docs, `MRCHI Intel Logs ${stamp} (${n})`);
+      }
+      fs.mkdirSync(dir, { recursive: true });
+
+      const source = path.dirname(path.join(app.getPath('userData'), 'pilots.json'));
+      const wanted = [
+        { name: 'non-alerts.log', file: 'non-alerts.log' },
+        { name: 'unverified-pilots.log', file: 'unverified-pilots.log' },
+      ];
+      const written = [];
+      for (const w of wanted) {
+        const from = path.join(source, w.file);
+        const to = path.join(dir, w.name);
+        // A log that was never written still gets an empty file, so the export
+        // always contains both and it is obvious which one had nothing.
+        if (fs.existsSync(from)) fs.copyFileSync(from, to);
+        else fs.writeFileSync(to, '');
+        written.push(w.name);
+      }
+      log.info(`Exported logs to ${dir}`);
+      return { ok: true, dir, files: written };
+    } catch (err) {
+      log.error(`Export logs failed: ${err.message}`);
+      return { ok: false, error: err.message };
+    }
   });
 
   // --- local monitor -------------------------------------------------------

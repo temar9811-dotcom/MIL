@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.9
+
+### Features
+
+- **Non-alert log** — every chat line the app reads but cannot turn into an alert is now written to `non-alerts.log`, so the lines that slip through are easy to find. A line understood but simply out of range is left out; everything else that produced no alert is recorded. The log starts fresh on every launch.
+- **Export logs** — a new **Export Logs** button on the Debug tab copies the non-alert log and the unverified-pilot log into a timestamped folder in your Documents, ready to share.
+
 ## 1.2.8
 
 ### Features

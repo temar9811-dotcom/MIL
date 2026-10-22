@@ -1,3 +1,6 @@
+// MIL alerts v8 - set reason.outOfRange when a parsed report matched no rule
+// only because nothing was in range, so the caller can tell a genuine
+// "understood but nothing to do" line apart from "would have alerted if near".
 // MIL alerts v7 - carry links; pilot is data, label is display; carry raw line
 const { GROUPS } = require('./groups');
 
@@ -61,7 +64,10 @@ class Alerts {
     return (event.events || []).find((ev) => ep[ev.id] !== false) || null;
   }
 
-  evaluate(event) {
+  evaluate(event, reason) {
+    if (event) {
+      if (reason) reason.outOfRange = false;
+    }
     if (!event) return null;
 
     const links = Array.isArray(event.links) ? event.links : [];
@@ -128,7 +134,13 @@ class Alerts {
         }
       }
     }
-    if (!type) return null;
+    if (!type) {
+      // A real system with a real pilot, but nothing matched: not within red
+      // proximity, not on the watch list, no group ship, no activity ping.
+      // This is the "would alert if it were closer" case the caller excludes.
+      if (reason) reason.outOfRange = true;
+      return null;
+    }
 
     const now = Date.now();
 

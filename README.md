@@ -1,4 +1,4 @@
-# MRCHI Intel Lite — v1.2.8
+# MRCHI Intel Lite — v1.2.9
 
 ...
 
@@ -57,8 +57,20 @@ arrive. Packaged as a standard Windows installer.
   their own alert, and a reported pilot links straight to their zkillboard page
   once their character is resolved.
 - **Time-stamped alerts** — every card shows the local time the report came in.
+- **Non-alert log** — any intel line the app reads but can't turn into an alert
+  is written to a log, so nothing slips through unnoticed. The Debug tab's
+  **Export Logs** button copies it and the unverified-pilot log to your
+  Documents.
 
 ## Changelog
+
+### 1.2.9
+A non-alert log and a way to share it. Every chat line the app reads but cannot
+turn into an alert is now written to `non-alerts.log` — a report understood but
+simply out of range is left out, everything else that produced no alert is kept.
+The log starts fresh on each launch. The Debug tab gained an **Export Logs**
+button that copies it and the unverified-pilot log into a timestamped folder in
+your Documents.
 
 ### 1.2.8
 Map view and see-through alerts. The Intel Map now opens as a 2D star map

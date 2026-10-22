@@ -1,5 +1,7 @@
 // # FILE: src/main/index.js
-// # VERSION: 23
+// # VERSION: 24
+// MIL main v24 - the engine's non-alert log is cleared on every launch, so a
+// restart always starts the diagnostic log from empty.
 // MIL main v23 - the alerts pop-out gains a persisted transparency toggle
 // (`set-alerts-transparent`), and `set-always-on-top` now honours the value it
 // is sent - the preload had been dropping it, so that checkbox never worked.
@@ -297,6 +299,8 @@ app.whenReady().then(() => {
   config = loadConfig();
 
   engine = new Engine(log);
+  // Start each launch with a clean non-alert log: the previous one is deleted.
+  engine.nonAlertLog.reset();
   alertsBus = new AlertsBus(log, engine);
   pilotResolver = new PilotResolver({
     log,
