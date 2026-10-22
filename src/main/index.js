@@ -1,5 +1,7 @@
 // # FILE: src/main/index.js
-// # VERSION: 24
+// # VERSION: 25
+// MIL main v25 - the alerts pop-out opens solid by default and is half as tall
+// (640 -> 320), so it takes less screen without hiding alerts behind it.
 // MIL main v24 - the engine's non-alert log is cleared on every launch, so a
 // restart always starts the diagnostic log from empty.
 // MIL main v23 - the alerts pop-out gains a persisted transparency toggle
@@ -199,7 +201,7 @@ function createAlertsWindow() {
   }
   alertsWindow = new BrowserWindow({
     width: 520,
-    height: 640,
+    height: 320,
     title: 'MRCHI Alerts',
     alwaysOnTop: true,
     // The alerts window floats over the game with only its cards and text solid.

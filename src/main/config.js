@@ -1,5 +1,7 @@
 // # FILE: src/main/config.js
-// # VERSION: 13
+// # VERSION: 14
+// MIL config v14 - `alertsTransparent` now defaults to false: the alerts
+// pop-out opens solid, and the see-through look is opt-in.
 // MIL config v13 - adds `alertsTransparent`, the alerts pop-out's see-through
 // toggle, so the choice persists across a reopen (SETTINGS_VERSION 10).
 // MIL config v12 - one settings store: config.json (v10), plus the chat-log
@@ -79,8 +81,9 @@ const SETTINGS_DEFAULTS = {
   // The alerts pop-out is created transparent so it can float over the game.
   // This decides whether its chrome stays that way (desktop shows through) or
   // is filled in solid - the window itself is always constructed transparent,
-  // since Electron cannot change that at runtime.
-  alertsTransparent: true,
+  // since Electron cannot change that at runtime. Solid is the default: the
+  // see-through look is opt-in.
+  alertsTransparent: false,
 };
 
 function configPath() {

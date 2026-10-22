@@ -42,9 +42,9 @@ arrive. Packaged as a standard Windows installer.
   you prefer), and forgets people when they log off.
 - **Character list** showing who's online and which system they're in.
 - **Pop-out alerts window** you can drag to a second monitor and keep on top.
-- **See-through pop-out**: float the alerts window over the game with only the
-  text showing — a **Transparent** toggle sits beside **Always on top**, and
-  your choice is remembered.
+- **See-through pop-out (optional)**: tick **Transparent** beside **Always on
+  top** to float the alerts window over the game with only the text showing.
+  Off by default — the window opens solid.
 - **Intel Map**: a pyramid of every system in range that lights up when intel
   lands in it; hover any system for the full report. Costs nothing when off.
   Opens as a 2D star map by default, with a one-click switch to the pyramid.
@@ -71,6 +71,11 @@ simply out of range is left out, everything else that produced no alert is kept.
 The log starts fresh on each launch. The Debug tab gained an **Export Logs**
 button that copies it and the unverified-pilot log into a timestamped folder in
 your Documents.
+
+The alerts pop-out is tidier too: it now opens **solid** rather than see-through
+(the **Transparent** checkbox is still there if you want the floating look), is
+half as tall at 320px, and its title and checkboxes no longer sit inside the
+window's edge.
 
 ### 1.2.8
 Map view and see-through alerts. The Intel Map now opens as a 2D star map

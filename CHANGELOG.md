@@ -7,6 +7,12 @@
 - **Non-alert log** — every chat line the app reads but cannot turn into an alert is now written to `non-alerts.log`, so the lines that slip through are easy to find. A line understood but simply out of range is left out; everything else that produced no alert is recorded. The log starts fresh on every launch.
 - **Export logs** — a new **Export Logs** button on the Debug tab copies the non-alert log and the unverified-pilot log into a timestamped folder in your Documents, ready to share.
 
+### Changes
+
+- **The alerts pop-out opens solid** — it starts as a normal filled window instead of see-through. The **Transparent** checkbox is still there if you want the floating, text-only look, but it is no longer on by default.
+- **Alerts pop-out is half as tall** — 320px instead of 640px, so it takes up less of the screen.
+- **Header no longer clashes with the window edge** — the title and checkboxes had been sitting inside the window's invisible resize border. Extra padding gives them room to breathe.
+
 ## 1.2.8
 
 ### Features

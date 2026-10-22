@@ -1,5 +1,5 @@
 /* # FILE: src/renderer/style.css */
-/* # VERSION: 8 */
+/* # VERSION: 9 */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -388,6 +388,12 @@ body.big-text #save-state, body.big-text #save-other-state { font-size: 14px; }
      that needs clicks has to opt back out below. */
   -webkit-app-region: drag;
   user-select: none;
+  /* Windows keeps an invisible resize border on a frameless transparent window
+     that is inset into the top of the content. Extra top padding - and a little
+     at the sides - keeps the title and checkboxes clear of it, so the border no
+     longer paints over the controls. */
+  padding: 20px 16px 12px;
+  gap: 12px;
 }
 
 .alerts-window header label,

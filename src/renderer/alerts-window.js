@@ -1,3 +1,5 @@
+// MIL alerts-window v3 - solid by default: only an explicit `alertsTransparent`
+// true turns the chrome see-through.
 // MIL alerts-window v2 - renderer for the popped-out alerts window
 const aotCheckbox = document.getElementById('always-on-top');
 const transparentCheckbox = document.getElementById('transparent-alerts');
@@ -39,8 +41,8 @@ async function init() {
   try {
     const state = await window.electronAPI.getState();
     if (state && state.config && transparentCheckbox) {
-      // Default to on for an install that predates the setting.
-      const on = state.config.alertsTransparent !== false;
+      // Solid by default: only an explicit true turns transparency on.
+      const on = state.config.alertsTransparent === true;
       transparentCheckbox.checked = on;
       applyTransparency(on);
     }
