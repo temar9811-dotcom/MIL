@@ -221,7 +221,12 @@ class PythonDetector {
     }
     try {
       const result = await this.sendCommand('detect', { region });
-      return { matches: result.matches || [], error: null };
+      return {
+        matches: result.matches || [],
+        frameMean: result.frame_mean,
+        frameStddev: result.frame_stddev,
+        error: null,
+      };
     } catch (e) {
       this.log.error(`[PythonDetector] Detect failed: ${e.message}`);
       return { matches: [], error: e.message };

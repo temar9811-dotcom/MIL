@@ -65,10 +65,11 @@ blown up to 200% is a guess. Five masters at 200% beats five masters at 90%.
 ## Producing the art
 
 The fastest way to get pixel-exact art is to let the app capture it for you: the
-**Set area** button writes a snapshot of the region to
-`resources/local-monitor/snapshots/area<N>-<scale>pct.png` right after you drag
-the box, and **Snapshot** re-takes it on demand. Both use the exact capture path
-the matcher uses, so art cut from that PNG lines up with the live region.
+**Set area** button writes a snapshot of the region right after you drag the box,
+and **Snapshot** re-takes it on demand. The installed app saves snapshots under
+`%APPDATA%/mrchi-intel-lite/local-monitor/snapshots`; source runs save them under
+`resources/local-monitor/snapshots`. Both use the exact capture path the matcher
+uses, so art cut from that PNG lines up with the live region.
 
 > The `<scale>` in that file name is the **display** scale (Windows), not the EVE
 > interface scale. They are unrelated numbers and it is easy to confuse them.

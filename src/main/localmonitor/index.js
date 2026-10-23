@@ -93,6 +93,7 @@ class LocalMonitor {
     this.checkMaxMs = CHECK_MAX_MS;
 
     this.running = false;
+    this.startPromise = null;
     this.busy = false;
     this.threshold = DEFAULT_THRESHOLD;
     this.cooldown = DEFAULT_COOLDOWN;
@@ -392,6 +393,17 @@ class LocalMonitor {
 
   async start() {
     if (this.running) return { ok: true };
+    if (this.startPromise) return this.startPromise;
+    const operation = this.startInternal();
+    this.startPromise = operation;
+    try {
+      return await operation;
+    } finally {
+      if (this.startPromise === operation) this.startPromise = null;
+    }
+  }
+
+  async startInternal() {
     this.loadTemplates();
     if (this.templates[AREA_LOCAL_1].length === 0) {
       return this.fail(`No detection templates in ${this.templatesDir()} - add ${TEMPLATE_PREFIX}*.png`);
@@ -489,7 +501,7 @@ class LocalMonitor {
       const result = await this.detectArea(area);
       if (result.error) {
         area.captureFailures += 1;
-        this.lastError = `Screen capture failed for area ${id}`;
+        this.lastError = `Area ${id}: ${result.error}`;
         if (area.captureFailures >= MAX_CAPTURE_FAILURES) {
           this.log.error(`[LocalMonitor] ${this.lastError} ${MAX_CAPTURE_FAILURES}x - stopping`);
           this.stop();
@@ -525,6 +537,17 @@ class LocalMonitor {
     try {
       const result = await this.detector.detect(this.detectorRegion(area));
       if (result.error) return result;
+      // A successful BitBlt can still return a nearly black frame when the
+      // EVE window is covered or the selected rectangle no longer points at
+      // Local. Treat that as a capture failure instead of a misleading clear.
+      if (
+        Number.isFinite(result.frameMean)
+        && Number.isFinite(result.frameStddev)
+        && result.frameMean < 32
+        && result.frameStddev < 2
+      ) {
+        return { ...result, error: 'Captured area is blank or covered; show EVE and reselect the Local region' };
+      }
       const width = Math.round((area.x2 - area.x) * areaDisplay(area).scaleFactor);
       const height = Math.round((area.y2 - area.y) * areaDisplay(area).scaleFactor);
       return { ...result, width, height };
@@ -790,6 +813,9 @@ class LocalMonitor {
   // cut from, and because it goes through the same capture path the matcher
   // uses, a template taken from here matches the live region exactly.
   snapshotDir() {
+    if (app.isPackaged) {
+      return path.join(app.getPath('userData'), 'local-monitor', 'snapshots');
+    }
     const dev = path.join(__dirname, '..', '..', '..', 'resources', 'local-monitor', 'snapshots');
     if (fs.existsSync(path.join(__dirname, '..', '..', '..', 'resources', 'local-monitor'))) {
       return dev;

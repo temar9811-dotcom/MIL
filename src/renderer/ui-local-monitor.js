@@ -16,6 +16,7 @@ var els = {};
 var pollTimer = null;
 var statusRunning = false;
 var lastError = null;
+var startPending = false;
 
 function log(level, msg) {
     if (typeof window.appendDebug === 'function') window.appendDebug(level, 'Local-Monitor: ' + msg);
@@ -171,8 +172,10 @@ function renderStatus(data) {
     if (data.lastError) parts.push('error: ' + data.lastError);
     if (els.status) els.status.textContent = parts.join(' · ');
     if (els.start) {
-        els.start.textContent = data.running ? 'Stop' : 'Start';
-        els.start.classList.toggle('running', !!data.running);
+        if (!startPending) {
+            els.start.textContent = data.running ? 'Stop' : 'Start';
+            els.start.classList.toggle('running', !!data.running);
+        }
     }
     if (data.lastError !== lastError) {
         lastError = data.lastError;
@@ -196,26 +199,31 @@ function startPoll() {
 
 async function toggleStart() {
     if (!window.electronAPI || !window.electronAPI.localMonitorStart || !window.electronAPI.localMonitorStop) return;
-    if (statusRunning) {
-        try {
+    if (startPending) return;
+    startPending = true;
+    if (els.start) {
+        els.start.disabled = true;
+        els.start.textContent = statusRunning ? 'Stopping…' : 'Starting…';
+    }
+    try {
+        if (statusRunning) {
             await window.electronAPI.localMonitorStop();
             log('INFO', 'Local monitor stopped.');
-        } catch (err) {
-            log('ERROR', 'Failed to stop local monitor: ' + err.message);
-        }
-    } else {
-        // Save first: start() runs against the area regions and threshold the
-        // main process was last told about, not the ones still in these inputs.
-        var saved = await saveSettings();
-        if (!saved) return;
-        try {
+        } else {
+            // Save first: start() runs against the area regions and threshold the
+            // main process was last told about, not the ones still in these inputs.
+            var saved = await saveSettings();
+            if (!saved) return;
             await window.electronAPI.localMonitorStart();
             log('INFO', 'Local monitor started.');
-        } catch (err) {
-            log('ERROR', 'Failed to start local monitor: ' + err.message);
         }
+    } catch (err) {
+        log('ERROR', 'Failed to ' + (statusRunning ? 'stop' : 'start') + ' local monitor: ' + err.message);
+    } finally {
+        startPending = false;
+        if (els.start) els.start.disabled = false;
+        await refreshStatus();
     }
-    await refreshStatus();
 }
 
 async function testAlarm() {

@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.3
+
+### Fixes
+
+- **Local Monitor warns on blank or covered capture areas** instead of silently
+  treating them as clear.
+- **Start and Stop cannot launch duplicate detectors** while a transition is in
+  progress.
+- **Packaged snapshots save in the user data folder**, where Windows allows the
+  app to write them.
+
 ## 1.3.2
 
 ### Changes

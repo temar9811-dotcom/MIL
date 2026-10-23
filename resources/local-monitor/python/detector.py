@@ -84,6 +84,11 @@ class Detector:
         except Exception as e:
             return {"status": "error", "message": f"Capture failed: {e}"}
 
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        frame_mean, frame_stddev = cv2.meanStdDev(gray)
+        frame_mean = float(frame_mean[0][0])
+        frame_stddev = float(frame_stddev[0][0])
+
         matches = []
         for tpl in self.templates:
             if tpl.width > img.shape[1] or tpl.height > img.shape[0]:
@@ -119,7 +124,12 @@ class Detector:
 
         # Sort by score descending
         matches.sort(key=lambda m: m['score'], reverse=True)
-        return {"status": "ok", "matches": matches}
+        return {
+            "status": "ok",
+            "matches": matches,
+            "frame_mean": frame_mean,
+            "frame_stddev": frame_stddev,
+        }
 
 def main():
     detector = Detector()
