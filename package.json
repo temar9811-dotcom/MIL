@@ -1,6 +1,6 @@
 {
   "name": "mrchi-intel-lite",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "EVE Online Intel Alert Tool",
   "main": "src/main/index.js",
   "scripts": {
@@ -8,6 +8,8 @@
     "start:debug": "set DEBUG=1 & electron .",
     "test": "node --test",
     "build": "electron-builder",
+    "build:local-monitor-runtime": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/build-local-monitor-runtime.ps1",
+    "prebuild:win": "npm run build:local-monitor-runtime",
     "build:win": "electron-builder --win nsis"
   },
   "devDependencies": {
@@ -27,6 +29,8 @@
       "**/*",
       "!static.db",
       "!dist/",
+      "!build/local-monitor/",
+      "!resources/local-monitor/runtime/",
       "!diag.js",
       "!test-sound.js",
       "!extract-eve-data.js",

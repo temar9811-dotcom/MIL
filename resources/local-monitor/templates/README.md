@@ -3,10 +3,11 @@
 Drop detection art in this folder. The engine reads it on **Start** (and on
 **Preview**) and needs at least one file before the monitor will run.
 
-The detector runs in a Python subprocess. Install Python 3.9+ and its packages
-once with `python -m pip install -r resources/local-monitor/python/requirements.txt`.
-The Local Monitor reports a startup error when Python or one of these packages
-is missing.
+The installed Windows app includes its own detector runtime; Python does not
+need to be installed separately. When running the app from source, install
+Python 3.9+ and its packages once with
+`python -m pip install -r resources/local-monitor/python/requirements.txt`.
+The Windows app build packages this runtime automatically with PyInstaller.
 
 ## Naming
 

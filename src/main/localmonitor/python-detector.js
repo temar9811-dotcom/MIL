@@ -26,23 +26,32 @@ class PythonDetector {
     this.scale = scale;
     this.templateData = await this.loadTemplateData(templatesDir);
 
-    const devScript = path.join(__dirname, '..', '..', '..', 'resources', 'local-monitor', 'python', 'detector.py');
-    const packagedScripts = [
-      path.join(process.resourcesPath || '', 'local-monitor', 'python', 'detector.py'),
-      path.join(process.resourcesPath || '', 'resources', 'local-monitor', 'python', 'detector.py'),
+    const packagedDetectors = [
+      path.join(process.resourcesPath || '', 'local-monitor', 'runtime', 'detector.exe'),
+      path.join(process.resourcesPath || '', 'resources', 'local-monitor', 'runtime', 'detector.exe'),
     ];
-    const scriptPath = (app.isPackaged ? [...packagedScripts, devScript] : [devScript, ...packagedScripts])
-      .find((candidate) => fs.existsSync(candidate));
-    if (!scriptPath) throw new Error('Python detector script is missing from the application resources');
-
-    // Try to find python executable
-    const pythonCmd = this.findPython();
-    if (!pythonCmd) {
-      throw new Error('Python not found. Please install Python 3.8+ with opencv-python, numpy, mss');
+    const devScript = path.join(__dirname, '..', '..', '..', 'resources', 'local-monitor', 'python', 'detector.py');
+    let command;
+    let args;
+    if (app.isPackaged) {
+      command = packagedDetectors.find((candidate) => fs.existsSync(candidate));
+      if (!command) {
+        throw new Error('Bundled Local Monitor detector is missing. Reinstall the application.');
+      }
+      args = [];
+    } else {
+      if (!fs.existsSync(devScript)) {
+        throw new Error('Python detector script is missing from the source checkout');
+      }
+      command = this.findPython();
+      args = [devScript];
+      if (!command) {
+        throw new Error('Python not found. Install Python 3.9+ with opencv-python, numpy, and mss to run from source.');
+      }
     }
 
-    this.log.info(`[PythonDetector] Starting: ${pythonCmd} ${scriptPath}`);
-    this.proc = spawn(pythonCmd, [scriptPath], {
+    this.log.info(`[PythonDetector] Starting: ${command}${args.length ? ` ${args.join(' ')}` : ''}`);
+    this.proc = spawn(command, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, PYTHONUNBUFFERED: '1' }
     });

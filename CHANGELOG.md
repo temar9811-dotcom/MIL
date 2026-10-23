@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.2
+
+### Changes
+
+- **Local Monitor no longer needs a separate Python installation** — the
+  Windows installer includes a bundled detector with OpenCV, NumPy, and MSS.
+
 ## 1.3.1
 
 ### Fixes
