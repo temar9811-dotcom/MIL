@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.4
+
+### Fixes
+
+- **Local Monitor alarms work with the bundled OpenCV runtime.** OpenCV 5 no
+  longer provides `groupRectangles`; template hits are now grouped without that
+  API, and matcher errors are surfaced instead of silently discarded.
+
 ## 1.3.3
 
 ### Fixes

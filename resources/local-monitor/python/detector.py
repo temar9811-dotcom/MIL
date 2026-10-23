@@ -95,32 +95,48 @@ class Detector:
                 continue
             try:
                 result = cv2.matchTemplate(img, tpl.img, cv2.TM_CCOEFF_NORMED)
-                locations = np.where(result >= self.threshold)
-                locations = list(zip(*locations[::-1]))  # (x, y)
-
-                # Group overlapping rectangles (simple version)
-                rectangles = []
-                for (x, y) in locations:
-                    rectangles.append([int(x), int(y), tpl.width, tpl.height])
-                    rectangles.append([int(x), int(y), tpl.width, tpl.height])  # Duplicate for groupRectangles
-
-                if rectangles:
-                    rectangles, _ = cv2.groupRectangles(
-                        rectangles, groupThreshold=1, eps=0.5
+                # OpenCV 5 removed cv2.groupRectangles. The old call was
+                # inside a broad except, so that version silently dropped every
+                # valid template hit and Local Monitor never alarmed. Connected
+                # components over the threshold map group adjacent candidate
+                # positions; retain the strongest score in each component.
+                threshold_map = (result >= self.threshold).astype(np.uint8)
+                count, labels, _, _ = cv2.connectedComponentsWithStats(
+                    threshold_map, connectivity=8
+                )
+                if count > 1:
+                    flat_labels = labels.reshape(-1)
+                    flat_scores = result.reshape(-1)
+                    best_scores = np.full(count, -np.inf, dtype=np.float32)
+                    best_indexes = np.full(count, -1, dtype=np.int64)
+                    valid = flat_labels > 0
+                    np.maximum.at(best_scores, flat_labels[valid], flat_scores[valid])
+                    candidate_indexes = np.flatnonzero(
+                        valid & (flat_scores == best_scores[flat_labels])
                     )
-                    for (x, y, w, h) in rectangles:
-                        # Get the best score for this grouped rectangle
-                        score = float(result[y:y+h, x:x+w].max())
+                    np.minimum.at(
+                        best_indexes,
+                        flat_labels[candidate_indexes],
+                        candidate_indexes,
+                    )
+                    for label in range(1, count):
+                        index = int(best_indexes[label])
+                        if index < 0:
+                            continue
+                        y, x = divmod(index, result.shape[1])
                         matches.append({
                             "name": tpl.name,
-                            "score": round(score, 4),
-                            "x": x,
-                            "y": y,
-                            "w": w,
-                            "h": h
+                            "score": round(float(best_scores[label]), 4),
+                            "x": int(x),
+                            "y": int(y),
+                            "w": tpl.width,
+                            "h": tpl.height
                         })
             except Exception as e:
-                continue
+                return {
+                    "status": "error",
+                    "message": f"Template match failed for {tpl.name}: {e}"
+                }
 
         # Sort by score descending
         matches.sort(key=lambda m: m['score'], reverse=True)
