@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.1
+
+### Fixes
+
+- **Automatic updates now download** — when an update is found, the app starts
+  downloading it if **Install updates automatically** is enabled. Turning the
+  setting back on also starts a download for an update that is already waiting.
+
 ## 1.3.0
 
 ### Features

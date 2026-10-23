@@ -21,6 +21,7 @@ let checking = false;
 let intervalHandle = null;
 let availableVersion = null;
 let pendingNotes = null;
+let downloadInProgress = false;
 let lastState = 'unavailable';
 let deps = { log: null, getSettings: null, setLastSeenVersion: null, shutdownForInstall: null };
 
@@ -117,6 +118,8 @@ async function checkForUpdates() {
 // The user hit "Update Now" (or the dialog path asked for it): download now.
 async function downloadUpdate() {
   if (!isPackaged()) return { ok: false, reason: 'not-packaged' };
+  if (downloadInProgress) return { ok: true, alreadyDownloading: true };
+  downloadInProgress = true;
   sendState('downloading');
   try {
     await autoUpdater.downloadUpdate();
@@ -125,6 +128,8 @@ async function downloadUpdate() {
     deps.log && deps.log.error(`Update download failed: ${err.message}`);
     sendState('error');
     return { ok: false, reason: err.message };
+  } finally {
+    downloadInProgress = false;
   }
 }
 
@@ -147,10 +152,11 @@ async function fireUpdaterNow() {
 // now rather than at the next poll.
 function applyAutoInstallSetting() {
   if (!initialized || !isPackaged()) return;
+  sendState('setting');
   if (isAutoInstallEnabled() && availableVersion) {
     sendToRenderer('updater:available', { version: availableVersion });
+    downloadUpdate().catch(() => {});
   }
-  sendState('setting');
 }
 
 function readChangelogFile() {
@@ -234,10 +240,14 @@ function initUpdater(options) {
     pendingNotes = (info && info.releaseNotes) || 'No release notes available.';
     availableVersion = info && info.version;
     deps.log && deps.log.info(`Update available: v${availableVersion}`);
+    sendState('available');
     if (isAutoInstallEnabled()) {
       sendToRenderer('updater:available', { version: availableVersion });
+      // electron-updater auto-download is disabled so the manual mode can use
+      // the same download path. In automatic mode, explicitly start it here;
+      // otherwise the update remains available forever without being fetched.
+      downloadUpdate().catch(() => {});
     }
-    sendState('available');
   });
 
   autoUpdater.on('update-not-available', () => {
