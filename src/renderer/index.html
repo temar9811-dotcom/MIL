@@ -88,6 +88,9 @@
             <option value="8">8x slower &mdash; every 2000ms / 16-24s</option>
             <option value="10">10x slower &mdash; every 2500ms / 20-30s</option>
           </select></div>
+          <div class="row"><label for="lm-template-scale">Template size</label><select id="lm-template-scale" style="width:100%;">
+            <option value="90">90%</option><option value="100" selected>100%</option><option value="110">110%</option><option value="125">125%</option><option value="150">150%</option><option value="175">175%</option><option value="200">200%</option><option value="all">All sizes (more CPU)</option>
+          </select></div>
           <div class="row"><label for="lm-threshold">Detection threshold</label><div style="display:flex;align-items:center;gap:8px;"><input id="lm-threshold" type="range" min="10" max="100" step="1" value="60" style="flex:1;" /><span id="lm-threshold-label" style="width:42px;">60</span></div></div>
           <div class="row"><label for="lm-cooldown">Cooldown (seconds of quiet after 3 rapid triggers)</label><input id="lm-cooldown" type="number" min="0" step="1" value="60" /></div>
           <div class="row checks"><label><input id="lm-mute" type="checkbox" /> Mute alarm sound</label></div>
@@ -169,7 +172,7 @@
             <div class="row checks" style="flex-direction:column;align-items:flex-start;gap:8px;">
               <label title="Intel Map, its tab and its pop-out window. Off means no tracking at all."><input type="checkbox" id="module-map" /> Intel Map</label>
               <label title="Zkill feed and its tab."><input type="checkbox" id="module-zkill" /> Zkill</label>
-              <label title="Local Monitor. Off at startup; enabling it loads the monitor and shows its tab."><input type="checkbox" id="module-local" /> Local Monitor</label>
+              <label title="Local Monitor (Experimental). Off at startup; enabling it loads the monitor and shows its tab."><input type="checkbox" id="module-local" /> Local Monitor (Experimental)</label>
             </div>
             <div style="margin:14px 0 6px;color:#f43f5e;font-size:0.75em;letter-spacing:1px;text-transform:uppercase;">Updates</div>
             <div class="row checks"><label title="MRCHI Intel Lite always checks for a new release once an hour. Turn this off to install updates only when you click Update Now in the header."><input type="checkbox" id="auto-install-updates" checked /> Install updates automatically</label></div>

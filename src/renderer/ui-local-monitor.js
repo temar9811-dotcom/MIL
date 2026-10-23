@@ -32,6 +32,7 @@ function collectElements() {
     els.threshold = $('lm-threshold');
     els.thresholdLabel = $('lm-threshold-label');
     els.checkRate = $('lm-check-rate');
+    els.templateScale = $('lm-template-scale');
     els.cooldown = $('lm-cooldown');
     els.mute = $('lm-mute');
     els.save = $('lm-save');
@@ -76,6 +77,7 @@ function getSettings() {
         localCooldown: (els.cooldown && Number(els.cooldown.value) >= 0) ? Number(els.cooldown.value) : DEFAULT_COOLDOWN,
         localMute: !!(els.mute && els.mute.checked),
         localCheckRate: clampCheckRate(els.checkRate ? els.checkRate.value : DEFAULT_CHECK_RATE),
+        localTemplateScale: els.templateScale ? els.templateScale.value : '100',
         localArea1: readAreaEls(els.areas[0]),
         localArea2: readAreaEls(els.areas[1]),
     };
@@ -324,6 +326,7 @@ window.loadLocalMonitorSettings = function (settings) {
     }
     if (els.mute) els.mute.checked = !!settings.localMute;
     if (els.checkRate) els.checkRate.value = String(clampCheckRate(settings.localCheckRate));
+    if (els.templateScale) els.templateScale.value = ['90','100','110','125','150','175','200','all'].indexOf(String(settings.localTemplateScale)) >= 0 ? String(settings.localTemplateScale) : '100';
     refreshStatus();
     startPoll();
     log('INFO', 'Local Monitor settings loaded.');

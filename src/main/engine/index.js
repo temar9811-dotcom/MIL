@@ -1,7 +1,6 @@
 // # FILE: src/main/engine/index.js
-// # VERSION: 23
-// MIL engine v23 - lines that reach the pipeline but produce no alert (and are
-// not merely out of range) are appended to non-alerts.log via NonAlertLog.
+// # VERSION: 24
+// MIL engine v24 - bounded async name-validity gate before alert processing.
 const { app } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -18,6 +17,10 @@ const { SoundPlayer } = require('../sounds');
 const { NotificationSender } = require('../notifications');
 const { WindowPresence } = require('../windowpresence');
 
+const MAX_PENDING_MESSAGES = 200;
+const MAX_QUEUE_RESIDENCE_MS = 2 * 60 * 1000;
+const MAX_MESSAGE_AGE_MINUTES = 5;
+
 class Engine {
 constructor(log) {
 this.log = log;
@@ -27,6 +30,10 @@ this.recentAlerts = [];
 this.onAlert = null;
 this.alertSeq = 0;
 this.seenMessages = new Map();
+this.characterResolver = null;
+this.messageQueue = [];
+this.processingQueue = false;
+this.pipeline = Promise.resolve();
 this.registry = new CharacterRegistry(log);
 this.watcher = new ChatLogWatcher(log);
 this.data = new IntelData(log);
@@ -44,6 +51,8 @@ this.pyramid = new PyramidFeed(this);
 handlers() {
 return { onMessage: (msg) => this.handleMessage(msg) };
 }
+
+setCharacterResolver(resolver) { this.characterResolver = resolver || null; }
 
 alertHistoryPath() {
 return path.join(app.getPath('userData'), 'alerts.json');
@@ -133,11 +142,96 @@ return false;
 
 handleMessage(msg) {
 const channel = String(msg.channelName || '').trim().toLowerCase();
-if (channel === 'local') return;
-if (!this.isIntelChannel(channel)) return;
-if (msg.author === 'EVE System') return;
-if (!this.timeFilter.isFresh(msg.timestamp, 5)) return;
-if (this.isDuplicate(msg)) return;
+if (channel === 'local' || !this.isIntelChannel(channel) || msg.author === 'EVE System') return Promise.resolve();
+const arrivalAt = Date.now();
+const timestamp = this.timeFilter.parseEVETimestamp(msg.timestamp);
+const messageAt = timestamp ? timestamp.getTime() : null;
+if (messageAt == null || !this.timeFilter.isFreshAt(messageAt, MAX_MESSAGE_AGE_MINUTES, arrivalAt)) {
+  this.nonAlertLog.append(msg.raw, 'stale');
+  return Promise.resolve();
+}
+if (this.isDuplicate(msg)) {
+  this.nonAlertLog.append(msg.raw, 'duplicate');
+  return Promise.resolve();
+}
+if (this.messageQueue.length >= MAX_PENDING_MESSAGES) {
+  this.nonAlertLog.append(msg.raw, 'queue-full');
+  return Promise.resolve();
+}
+this.messageQueue.push({ msg, arrivalAt, messageAt });
+if (!this.processingQueue) this.startQueue();
+return this.pipeline;
+}
+
+startQueue() {
+if (this.processingQueue || !this.messageQueue.length) return;
+this.processingQueue = true;
+this.pipeline = this.pipeline.then(() => this.drainQueue()).catch((err) => {
+  this.log.error(`Intel message sequencer failed: ${err.message}`);
+}).finally(() => {
+  this.processingQueue = false;
+  if (this.messageQueue.length) this.startQueue();
+});
+}
+
+async drainQueue() {
+while (this.messageQueue.length) {
+  const queued = this.messageQueue.shift();
+  const residence = Date.now() - queued.arrivalAt;
+  if (residence > MAX_QUEUE_RESIDENCE_MS) {
+    this.nonAlertLog.append(queued.msg.raw, 'queue-expired');
+    continue;
+  }
+  if (!this.timeFilter.isFreshAt(queued.messageAt, MAX_MESSAGE_AGE_MINUTES)) {
+    this.nonAlertLog.append(queued.msg.raw, 'stale');
+    continue;
+  }
+  try {
+    await this.process(queued.msg, queued.messageAt);
+  } catch (err) {
+    this.log.error(`Intel message handler failed: ${err.message}`);
+    this.nonAlertLog.append(queued.msg.raw, 'handler-error');
+  }
+}
+}
+
+async applyPilotGate(events, msg) {
+const rows = Array.isArray(events) ? events : [];
+const validator = this.parser.nameValidator;
+const pilots = [];
+const classifications = new Map();
+let hadPilots = false;
+for (const event of rows) {
+  if (!event.pilot) continue;
+  hadPilots = true;
+  const classification = validator.classify(event.pilot);
+  classifications.set(event, classification);
+  if (classification.kind !== 'invalid' && !pilots.some((pilot) => pilot.toLowerCase() === event.pilot.toLowerCase())) pilots.push(event.pilot);
+}
+if (!hadPilots) return { events: rows, gated: false };
+const statuses = this.characterResolver && pilots.length
+  ? await this.characterResolver.resolve(pilots, { budgetMs: 850, rawLine: msg.raw })
+  : new Map(pilots.map((pilot) => [pilot, 'unknown']));
+const findStatus = (name) => statuses.get(name) || [...statuses].find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1] || 'unknown';
+const kept = [];
+for (const event of rows) {
+  if (!event.pilot) { kept.push(event); continue; }
+  const classification = classifications.get(event) || validator.classify(event.pilot);
+  if (classification.kind === 'invalid') continue;
+  const status = findStatus(event.pilot);
+  if (classification.kind === 'type-name' && status === 'missing') {
+    this.log.parse(`NAME GATE type-name rejected: ${event.pilot}`);
+    continue;
+  }
+  if (classification.kind === 'type-name' && status !== 'active' && status !== 'inactive' && status !== 'unknown') continue;
+  if (status === 'missing' || status === 'dormant') continue;
+  if (status === 'inactive' && classification.kind === 'dictionary') continue;
+  kept.push(event);
+}
+return { events: kept, gated: kept.length === 0 || (rows.some((event) => event.pilot) && !kept.some((event) => event.pilot)) };
+}
+
+async process(msg, messageAt) {
 this.log.parse(`[${msg.channelName}] ${msg.author}: ${msg.message}`);
 const events = this.parser.parse(msg) || [];
 if (!events.length) {
@@ -146,10 +240,15 @@ if (!events.length) {
   this.nonAlertLog.append(msg.raw);
   return;
 }
+const gate = await this.applyPilotGate(events, msg);
+if (gate.gated) {
+  this.nonAlertLog.append(msg.raw, 'name-gated');
+  return;
+}
 let firedAlert = false;
 let sawOutOfRange = false;
-for (const event of events) {
-  if (event.pilot && this.registry.get(event.pilot)) continue;
+for (const event of gate.events) {
+  if (event.pilot && this.registry.get(event.pilot)) { firedAlert = true; continue; }
   this.tracker.record(event);
   this.pyramid.recordSystemIntel(event);
   this.log.parse(
@@ -157,8 +256,8 @@ for (const event of events) {
     `ship=${event.ship || '?'} system=${event.system || '?'}`,
   );
   const reason = { outOfRange: false };
-  const alert = this.alerts.evaluate(event, reason);
-  if (alert) { this.fireAlert(alert); firedAlert = true; }
+  const alert = this.alerts.evaluate(event, reason, messageAt);
+  if (alert) { this.fireAlert(alert, messageAt); firedAlert = true; }
   else if (reason.outOfRange) sawOutOfRange = true;
 }
 // No alert was raised. A report that was merely out of range is not a parse
@@ -189,9 +288,9 @@ this.fireAlert(alert);
 }
 }
 
-fireAlert(alert) {
+fireAlert(alert, atTime) {
 alert.id = this.nextAlertId();
-alert.time = Date.now();
+alert.time = Number.isFinite(atTime) ? atTime : Date.now();
 this.recentAlerts.unshift(alert);
 this.recentAlerts = this.recentAlerts.slice(0, 50);
 this.saveAlertHistory();

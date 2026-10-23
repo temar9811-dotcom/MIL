@@ -64,7 +64,7 @@ class Alerts {
     return (event.events || []).find((ev) => ep[ev.id] !== false) || null;
   }
 
-  evaluate(event, reason) {
+  evaluate(event, reason, atTime) {
     if (event) {
       if (reason) reason.outOfRange = false;
     }
@@ -90,6 +90,7 @@ class Alerts {
         links,
         linkOnly: !pilot,
         raw: event.raw || null,
+        eventTime: Number.isFinite(atTime) ? atTime : null,
       };
     }
 
@@ -163,6 +164,7 @@ class Alerts {
       system: event.system,
       links,
       raw: event.raw || null,
+      eventTime: Number.isFinite(atTime) ? atTime : null,
     };
   }
 }

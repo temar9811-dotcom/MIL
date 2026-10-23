@@ -1,4 +1,5 @@
-// MIL parser v12 - URL fallback + asterisk cleanup + ualx alias + strip alias tokens + keep digits in names + carry raw line + pilot names must contain a letter and must not start with - . + split distinct pilots on 2+ spaces or a tab + ignore o7/m4 chat noise
+// MIL parser v13 - validates extracted pilot names and removes CJK pseudo-pilots
+const { NameValidator } = require('./name-validator');
 const SHIP_ALIASES = {
   cni: 'Caracal Navy Issue',
   eni: 'Exequror Navy Issue',
@@ -81,6 +82,7 @@ class IntelParser {
   constructor(data, log) {
     this.data = data;
     this.log = log;
+    this.nameValidator = new NameValidator(data, log);
   }
 
   esc(name) {
@@ -171,19 +173,24 @@ class IntelParser {
     if (!pilots.length && !systems.length && !ships.length && !count && !events.length && !links.length) return null;
 
     const list = pilots.length ? pilots : [null];
-    return list.map((pilot) => ({
-      type: 'report',
-      timestamp: msg.timestamp || null,
-      channel: msg.channelName || null,
-      reporter: msg.author || null,
-      pilot,
-      count: pilot ? null : count,
-      ship: ships[0] || null,
-      system: systems[0] || null,
-      events,
-      links,
-      raw: msg.raw || null,
-    }));
+    return list.map((pilot) => {
+      const classification = pilot ? this.nameValidator.classify(pilot) : null;
+      return {
+        type: 'report',
+        timestamp: msg.timestamp || null,
+        channel: msg.channelName || null,
+        reporter: msg.author || null,
+        pilot,
+        pilotKind: classification ? classification.kind : null,
+        pilotLowercase: classification ? classification.lowercase : false,
+        count: pilot ? null : count,
+        ship: ships[0] || null,
+        system: systems[0] || null,
+        events,
+        links,
+        raw: msg.raw || null,
+      };
+    });
   }
 
   extractPilots(text, systems, ships, msg, rawText) {
@@ -197,6 +204,7 @@ class IntelParser {
       if (IGNORE.has(n.toLowerCase())) return;
       if (/^[A-Z0-9]{2,5}-[A-Z0-9]{2,5}$/i.test(n)) return;
       if (msg.author && n.toLowerCase() === String(msg.author).toLowerCase()) return;
+      if (this.nameValidator.classify(n).kind === 'invalid') return;
       if (!pilots.includes(n)) pilots.push(n);
     };
 
@@ -208,8 +216,6 @@ class IntelParser {
         while (start > 0 && /[\w.'-]/.test(work[start - 1])) start--;
         push(work.slice(start, rm.index + rm[0].length).trim());
       }
-      const cjk = work.match(/[一-鿿]{2,}(?:\s+[一-鿿]{2,}){0,3}/g) || [];
-      for (const run of cjk) push(run.trim());
     };
 
     const killRegex = /(?:Kill|Победа|Victoire|Sieg|Victoria|击杀)[:：]\s*([^\s(（,，][\w.'-]*(?:\s+[A-Z0-9][\w.'-]*){0,3})/gi;

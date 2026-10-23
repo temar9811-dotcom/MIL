@@ -19,18 +19,8 @@ const saveOtherState = document.getElementById('save-other-state');
 // app is allowed to bring a module up.
 const moduleMapCheckbox = document.getElementById('module-map');
 const moduleZkillCheckbox = document.getElementById('module-zkill');
-// The Local Monitor gate is dev-only. Outside a packaged build its checkbox is
-// pulled out of the form entirely, which is what makes the guards below skip it
-// on load and omit the key on save: the form must never report on a gate it
-// cannot see, or saving any other setting would fabricate a value for it.
 const localModuleInput = document.getElementById('module-local');
-const moduleLocalCheckbox = (window.electronAPI && window.electronAPI.isDev)
-  ? localModuleInput
-  : null;
-if (!moduleLocalCheckbox && localModuleInput) {
-  const localModuleRow = localModuleInput.closest('label');
-  if (localModuleRow) localModuleRow.remove();
-}
+const moduleLocalCheckbox = localModuleInput;
 
 function applyBigText(on) {
   if (on) {

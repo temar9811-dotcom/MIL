@@ -173,9 +173,6 @@
     for (var i = 0; i < MODULES.length; i++) {
       var m = MODULES[i];
       var on = !!(settings && settings[m.setting]);
-      // The Local Monitor is dev-only: a packaged build forces its gate off no
-      // matter what the saved settings say, mirroring the main process.
-      if (m.id === 'local' && !(window.electronAPI && window.electronAPI.isDev)) on = false;
       if (enabled[m.id] === on) continue;
       enabled[m.id] = on;
       var btn = tabButton(m);

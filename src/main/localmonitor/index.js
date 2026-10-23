@@ -24,6 +24,7 @@ const { app, BrowserWindow, nativeImage, screen } = require('electron');
 const { captureRegion, areaSize, isUsableArea, areaRect, areaDisplay } = require('./capture');
 const { toChannels, toRgba, resampleChannels } = require('./bitmap');
 const { Vision, Template } = require('./vision');
+const { PythonDetector } = require('./python-detector');
 
 const AREA_LOCAL_1 = 1;
 const AREA_LOCAL_2 = 2;
@@ -81,6 +82,7 @@ class LocalMonitor {
     this.onAlarm = deps.onAlarm || (() => {});
     this.onStatus = deps.onStatus || (() => {});
     this.templatesDirOverride = deps.templatesDir || null;
+    this.detector = deps.detector || new PythonDetector(log);
 
     // Derived timers, seeded at the shipped cadence. setCheckRate rewrites
     // them; the constructor must not go through it because the timers are not
@@ -95,6 +97,7 @@ class LocalMonitor {
     this.threshold = DEFAULT_THRESHOLD;
     this.cooldown = DEFAULT_COOLDOWN;
     this.muted = false;
+    this.templateScale = '100';
     this.lastError = null;
     this.nextCheckAt = 0;
     this.templates = { 1: [], 2: [] };
@@ -180,7 +183,8 @@ class LocalMonitor {
       );
     }
     const seen = new Set();
-    for (const target of UI_SCALES) {
+    const targets = this.templateScale === 'all' ? UI_SCALES : [Number(this.templateScale)];
+    for (const target of targets) {
       const ratio = target / master;
       const w = Math.round(planes.width * ratio);
       const h = Math.round(planes.height * ratio);
@@ -251,6 +255,8 @@ class LocalMonitor {
 
   applySettings(settings) {
     if (!settings || typeof settings !== 'object') return;
+    const priorThreshold = this.threshold;
+    const priorScale = this.templateScale;
     if (Number.isFinite(settings.localThreshold)) {
       this.threshold = Math.max(THRESHOLD_MIN, Math.min(THRESHOLD_MAX, Math.round(settings.localThreshold)));
     }
@@ -258,6 +264,10 @@ class LocalMonitor {
       this.cooldown = Math.max(COOLDOWN_MIN, Math.min(COOLDOWN_MAX, Math.round(settings.localCooldown)));
     }
     if ('localMute' in settings) this.muted = !!settings.localMute;
+    if ('localTemplateScale' in settings) {
+      const value = String(settings.localTemplateScale);
+      this.templateScale = value === 'all' || UI_SCALES.includes(Number(value)) ? value : '100';
+    }
     if ('localCheckRate' in settings) {
       this.setCheckRate(settings.localCheckRate);
     }
@@ -272,6 +282,12 @@ class LocalMonitor {
         area.x2 = src.x2;
         area.y2 = src.y2;
       }
+    }
+    if (this.running && (priorThreshold !== this.threshold || priorScale !== this.templateScale)) {
+      this.loadTemplates();
+      this.detector.updateSettings(this.threshold / 100, this.templateScale)
+        .then(() => this.emit())
+        .catch((err) => this.fail(`Could not update OpenCV detector: ${err.message}`));
     }
     this.emit();
   }
@@ -313,6 +329,7 @@ class LocalMonitor {
       // configured value goes out under a different key.
       cooldownSetting: this.cooldown,
       muted: this.muted,
+      templateScale: this.templateScale,
       nextCheckS: this.running ? Math.max(0, Math.ceil((this.nextCheckAt - now) / 1000)) : null,
       cooldown,
       // Both Locals share one template set, so this is the shared length, not
@@ -384,22 +401,37 @@ class LocalMonitor {
       return this.fail('Enable an area and pick a region for it first');
     }
     const usable = [];
+    try {
+      await this.detector.start(this.templatesDir(), this.threshold / 100, this.templateScale);
+    } catch (err) {
+      await this.detector.stop();
+      return this.fail(`Could not start OpenCV detector: ${err.message}`);
+    }
+    if (!this.detector.isReady()) {
+      await this.detector.stop();
+      return this.fail(`No usable templates for ${this.templateScale === 'all' ? 'all sizes' : `${this.templateScale}%`}`);
+    }
     for (const id of enabled) {
       if (!isUsableArea(this.areas[id])) {
         const size = areaSize(this.areas[id]);
+        await this.detector.stop();
         return this.fail(`Area ${id} region is ${size.width}x${size.height} - set it to at least 8x8`);
       }
       if (this.templates[id].length === 0) {
+        await this.detector.stop();
         return this.fail(`${AREA_LABELS[id]} has no templates - add ${TEMPLATE_PREFIX}*.png to the templates folder`);
       }
       const size = areaSize(this.areas[id]);
       if (size.width * size.height > MAX_PIXELS) {
+        await this.detector.stop();
         return this.fail(`Area ${id} is ${size.width}x${size.height} - keep it under ${MAX_PIXELS} pixels`);
       }
       // Mirrors the reference's vision_check: fail loudly rather than start a
       // loop that can never see anything.
-      if (!await captureRegion(this.areas[id])) {
-        return this.fail(`Screen capture failed for area ${id}`);
+      const probe = await this.detectArea(this.areas[id]);
+      if (probe.error) {
+        await this.detector.stop();
+        return this.fail(`Screen capture failed for area ${id}: ${probe.error}`);
       }
       usable.push(id);
     }
@@ -422,6 +454,7 @@ class LocalMonitor {
     this.visionTimer = null;
     this.checkTimer = null;
     this.running = false;
+    this.detector.stop();
     this.busy = false;
     this.nextCheckAt = 0;
     for (const id of AREA_IDS) {
@@ -453,8 +486,8 @@ class LocalMonitor {
     for (const id of this.usableAreas()) {
       if (!this.running) return;
       const area = this.areas[id];
-      const shot = await captureRegion(area);
-      if (!shot) {
+      const result = await this.detectArea(area);
+      if (result.error) {
         area.captureFailures += 1;
         this.lastError = `Screen capture failed for area ${id}`;
         if (area.captureFailures >= MAX_CAPTURE_FAILURES) {
@@ -465,18 +498,38 @@ class LocalMonitor {
         continue;
       }
       area.captureFailures = 0;
-      const size = shot.getSize();
-      area.lastWidth = size.width;
-      area.lastHeight = size.height;
-      // One empty array per pass, ~8/second across both areas. Cheap enough
-      // that it is not worth a switch, and it means the log can always say what
-      // matched rather than only when someone turned tracing on first.
-      const trace = [];
-      const boxes = this.vision[id].match(toChannels(shot), this.threshold / 100, trace);
+      area.lastWidth = result.width;
+      area.lastHeight = result.height;
+      const trace = result.matches.map((m) => ({ name: m.name, score: m.score, x: m.x, y: m.y, w: m.w, h: m.h }));
+      const boxes = trace.map((m) => [m.x, m.y, m.w, m.h]);
       area.lastCount = boxes.length;
       area.enemy = boxes.length > 0;
       if (boxes.length > 0) this.rememberMatches(id, trace);
       else area.lastMatches = null;
+    }
+  }
+
+  detectorRegion(area) {
+    const display = areaDisplay(area);
+    const displays = screen.getAllDisplays();
+    const displayIndex = Math.max(0, displays.findIndex((d) => String(d.id) === String(display.id)));
+    return {
+      x: area.x, y: area.y,
+      width: Math.round(area.x2 - area.x), height: Math.round(area.y2 - area.y),
+      displayIndex,
+      displays: displays.map((d) => ({ x: d.bounds.x, y: d.bounds.y, width: d.bounds.width, height: d.bounds.height, scaleFactor: d.scaleFactor })),
+    };
+  }
+
+  async detectArea(area) {
+    try {
+      const result = await this.detector.detect(this.detectorRegion(area));
+      if (result.error) return result;
+      const width = Math.round((area.x2 - area.x) * areaDisplay(area).scaleFactor);
+      const height = Math.round((area.y2 - area.y) * areaDisplay(area).scaleFactor);
+      return { ...result, width, height };
+    } catch (err) {
+      return { matches: [], error: err.message };
     }
   }
 

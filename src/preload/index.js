@@ -8,12 +8,7 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Set by the main process via webPreferences.additionalArguments only when the
-// app is running from source. Dev-only settings hang off this flag.
-const isDev = process.argv.includes('--is-dev');
-
 contextBridge.exposeInMainWorld('electronAPI', {
-  isDev,
   getState: () => ipcRenderer.invoke('get-state'),
   getGroups: () => ipcRenderer.invoke('get-groups'),
   getPyramid: () => ipcRenderer.invoke('get-pyramid'),

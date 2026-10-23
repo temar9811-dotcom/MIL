@@ -26,14 +26,13 @@ const updater = require('./updater');
 const { TrayManager } = require('./tray');
 const { AlertsBus } = require('./alerts-bus');
 const { PilotResolver } = require('./intel/pilot-resolver');
+const { CharacterCache } = require('./intel/character-cache');
+const { CharacterResolver } = require('./intel/character-resolver');
+const { ZkillActivity } = require('./intel/zkill-activity');
+const { PortraitEtag } = require('./intel/portrait-etag');
 
 // Always enable debug logging
 const log = new DebugLog(true);
-
-// The Local Monitor is a dev-only module. Outside a packaged build it must not
-// come up at all, whatever the saved setting says, so every gate that could
-// raise it is qualified with this rather than with the raw config key.
-const IS_DEV = !app.isPackaged;
 
 let mainWindow = null;
 let alertsWindow = null;
@@ -45,6 +44,9 @@ let trayManager = null;
 let localMonitor = null;
 let alertsBus = null;
 let pilotResolver = null;
+let characterCache = null;
+let characterResolver = null;
+let zkillActivity = null;
 
 // --- module gates ----------------------------------------------------------
 // Optional modules are not merely hidden when off: they are never required and
@@ -85,14 +87,11 @@ function dropLocalMonitor() {
 }
 
 // Called after settings change. Each module gets told to come up or go away.
-function applyModuleGates(previous) {
-  const wasLocal = !!(previous && previous.localMonitorEnabled);
-  // Dev-only: a packaged build forces the gate off instead of reading it, so a
-  // setting flipped during development cannot bring the module up in production.
-  const isLocal = IS_DEV && moduleEnabled('localMonitorEnabled');
-  if (isLocal && !wasLocal) {
+function applyModuleGates() {
+  const isLocal = moduleEnabled('localMonitorEnabled');
+  if (isLocal) {
     getLocalMonitor();
-  } else if (!isLocal && wasLocal) {
+  } else {
     dropLocalMonitor();
   }
   if (localMonitor) localMonitor.applySettings(config || {});
@@ -153,9 +152,6 @@ function createWindow() {
       preload: path.join(__dirname, '..', 'preload', 'index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      // How the renderer learns it is running from source: the flag is only
-      // passed in dev, and the preload exposes it as electronAPI.isDev.
-      additionalArguments: IS_DEV ? ['--is-dev'] : [],
     },
   });
 
@@ -275,6 +271,7 @@ let shutdownDone = false;
 function shutdownForInstall() {
   if (shutdownDone) return;
   shutdownDone = true;
+  if (zkillActivity) zkillActivity.stop();
   try {
     if (engine && engine.stop) engine.stop();
   } catch (err) {
@@ -304,27 +301,35 @@ app.whenReady().then(() => {
   // Start each launch with a clean non-alert log: the previous one is deleted.
   engine.nonAlertLog.reset();
   alertsBus = new AlertsBus(log, engine);
-  pilotResolver = new PilotResolver({
+  characterCache = new CharacterCache({
     log,
     cachePath: path.join(app.getPath('userData'), 'pilots.json'),
+  });
+  zkillActivity = new ZkillActivity({ log });
+  const portraitEtag = new PortraitEtag({ log });
+  characterResolver = new CharacterResolver({ log, cache: characterCache, zkillActivity, portraitEtag });
+  engine.setCharacterResolver(characterResolver);
+  pilotResolver = new PilotResolver({
+    log,
+    cache: characterCache,
+    characterResolver,
     saveHistory: () => engine.saveAlertHistory(),
   });
 
   // Gates are applied before any window is created, so a module that is off is
   // never constructed in the first place.
-  applyModuleGates(null);
+  applyModuleGates();
 
   registerIpc(
     {
       getConfig: () => config,
       updateConfig: (c) => {
-        const previous = config;
         // Merge over the live config, not over the defaults. `normalizeConfig`
         // only guarantees unknown keys are kept; a partial payload would still
         // send every omitted key back to its default and silently discard the
         // user's stored value.
         config = normalizeConfig({ ...config, ...(c && typeof c === 'object' ? c : {}) });
-        applyModuleGates(previous);
+        applyModuleGates();
         saveConfig(config);
       },
     },
@@ -426,6 +431,7 @@ app.whenReady().then(() => {
 
   createWindow();
   engine.start(config);
+  zkillActivity.start();
   sendEngineState({ running: engine.isRunning() });
 
   // The gate says the module is available, not that it is running. Enabling the
@@ -455,6 +461,7 @@ app.whenReady().then(() => {
 });
 
 app.on('before-quit', () => {
+  if (zkillActivity) zkillActivity.stop();
   if (pilotResolver) pilotResolver.flush();
 });
 

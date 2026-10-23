@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.3.0
+
+### Features
+
+- **Less chatter in intel alerts** — pilot names are checked against EVE name
+  rules, a word list, and character existence/activity data before they can
+  trigger an alert. Lookup outages fail open so real reports are not held back.
+- **Responsive pilot checks** — lookups are coalesced and processed through a
+  bounded queue; delayed or gated lines are recorded with a reason in
+  `non-alerts.log`.
+- **Cleaner Intel Map backfill** — cached character status and name checks are
+  applied when replaying recent chat lines, without waiting on network calls.
+- **Local Monitor is available in packaged builds** — enable it from Other
+  Settings. It remains off until you turn it on, and its checkbox is marked
+  **Experimental**. Detection uses region capture and OpenCV; using it requires
+  Python 3.9+ with the packages listed in the Local Monitor template README.
+- **Choose the Local Monitor template size** — select one EVE interface scale
+  to reduce matching work, or check all sizes for broader scale coverage.
+
 ## 1.2.9
 
 ### On hold

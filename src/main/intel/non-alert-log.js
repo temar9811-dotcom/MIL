@@ -1,6 +1,8 @@
 // # FILE: src/main/intel/non-alert-log.js
 // # VERSION: 1
-// Records chat lines that reached the intel pipeline but produced no alert.
+// Records chat lines that reached the intel pipeline but produced no alert,
+// plus explicit pipeline rejection reasons such as name-gated, stale,
+// queue-full, and queue-expired for offline review.
 //
 // A line lands here when it passed the channel / freshness / duplicate gates and
 // then either failed to parse (no pilot, system, ship, count, event or link) or
@@ -26,10 +28,10 @@ class NonAlertLog {
   }
 
   // Append one raw chat line. Logging must never break the alert pipeline.
-  append(rawLine) {
+  append(rawLine, reason) {
     if (!rawLine) return;
     try {
-      fs.appendFileSync(this.path, rawLine + '\n');
+      fs.appendFileSync(this.path, `${rawLine}${reason ? `\t[reason=${reason}]` : ''}\n`);
     } catch (_) { /* never crash on logging */ }
   }
 }

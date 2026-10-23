@@ -28,7 +28,12 @@ class TimeFilter {
   isFresh(timestamp, maxAgeMinutes) {
     const t = this.parseEVETimestamp(timestamp);
     if (!t) return false;
-    return (Date.now() - t.getTime()) <= maxAgeMinutes * 60 * 1000;
+    return this.isFreshAt(t.getTime(), maxAgeMinutes);
+  }
+
+  isFreshAt(epoch, maxAgeMinutes, now = Date.now()) {
+    const at = Number(epoch);
+    return Number.isFinite(at) && at <= now && (now - at) <= maxAgeMinutes * 60 * 1000;
   }
 }
 

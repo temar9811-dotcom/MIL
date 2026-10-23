@@ -25,7 +25,7 @@ const DEFAULTS = {
 };
 
 // Bump by 1 whenever SETTINGS_DEFAULTS gains or loses a key.
-const SETTINGS_VERSION = 10;
+const SETTINGS_VERSION = 11;
 
 // How much slower the local monitor runs, as an exclusive multiplier.
 // Every gated module defaults to off, so a fresh install loads only the log
@@ -67,6 +67,7 @@ const SETTINGS_DEFAULTS = {
   // Exclusive check-rate multiplier for the local monitor. 1 is the shipped
   // cadence; 2/5/8/10 scale both the vision pass and the alarm check pass.
   localCheckRate: 1,
+  localTemplateScale: '100',
   localThreshold: 60,
   localCooldown: 60,
   localMute: false,

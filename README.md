@@ -1,4 +1,4 @@
-# MRCHI Intel Lite — v1.2.9
+# MRCHI Intel Lite — v1.3.0
 
 ...
 
@@ -48,11 +48,18 @@ arrive. Packaged as a standard Windows installer.
 - **Intel Map**: a pyramid of every system in range that lights up when intel
   lands in it; hover any system for the full report. Costs nothing when off.
   Opens as a 2D star map by default, with a one-click switch to the pyramid.
+- **Local Monitor (Experimental)**: opt-in screen monitoring for hostile
+  activity in your selected EVE client areas. Enable it in Other Settings.
+  Requires Python 3.9+ and the packages listed in
+  `resources/local-monitor/python/requirements.txt`.
 - **Separate volumes and your own custom sounds** for red and soft alerts.
 - **Remembers your last 50 alerts** across restarts, with a Clear button.
 - **Bigger text mode** for tired eyes.
 - **No spam**: the same report from three people is one ping, not three.
 - **Reads intel like a human** — shorthand, nicknames and typos included.
+- **Filters chatter from pilot reports** — name grammar, a bundled word list,
+  and character existence/activity checks help keep ordinary conversation out
+  of alerts. If a lookup service is unavailable, reports still pass through.
 - **Clickable link alerts** — d-scan and adashboard links posted in intel raise
   their own alert, and a reported pilot links straight to their zkillboard page
   once their character is resolved.
@@ -69,7 +76,18 @@ built-in shorthand — was explored but is on hold for now. It needs to clear a
 measured accuracy bar before it ships, so the app keeps its existing shorthand
 and alias handling unchanged.
 
+## Development
+
+Run the parser and fixture tests with `npm test` (Node's built-in test runner).
+
 ## Changelog
+
+### 1.3.0
+Pilot reports now pass through name and character checks before alerting. The
+engine batches lookups, keeps processing responsive during network delays, and
+records gated or expired lines with a reason. Cached character activity also
+filters dormant pilots from the Intel Map backfill. The opt-in Local Monitor is
+available in packaged builds and is labelled **Experimental** in Other Settings.
 
 ### 1.2.9
 A non-alert log and a way to share it. Every chat line the app reads but cannot

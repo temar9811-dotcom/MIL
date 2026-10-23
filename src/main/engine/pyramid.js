@@ -158,7 +158,18 @@ class PyramidFeed {
       if (seen.has(dedupe)) return;
       seen.add(dedupe);
       const events = this.e.parser.parse(msg) || [];
+      const candidates = [];
       for (const event of events) {
+        if (!event.pilot) { candidates.push(event); continue; }
+        const classification = this.e.parser.nameValidator.classify(event.pilot);
+        if (classification.kind === 'invalid') continue;
+        const status = this.e.characterResolver && this.e.characterResolver.peek(event.pilot);
+        if (!status || status === 'missing' || status === 'dormant') continue;
+        if (status === 'inactive' && classification.kind === 'dictionary') continue;
+        if (classification.kind === 'type-name' && status !== 'active' && status !== 'inactive') continue;
+        candidates.push(event);
+      }
+      for (const event of candidates) {
         if (event.pilot && this.registry.get(event.pilot)) continue;
         this.recordSystemIntel(event);
         recorded++;
