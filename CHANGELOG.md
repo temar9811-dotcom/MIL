@@ -2,6 +2,10 @@
 
 ## 1.2.9
 
+### On hold
+
+- **Fuzzy ship-name matching** — a parser change that would resolve misspelled hull names outside the built-in shorthand was researched and prototyped, but it is **not** shipping in 1.2.9. It is on hold until it can be measured against the corpus at an acceptable accuracy. The existing shorthand and aliases are unchanged.
+
 ### Features
 
 - **Non-alert log** — every chat line the app reads but cannot turn into an alert is now written to `non-alerts.log`, so the lines that slip through are easy to find. A line understood but simply out of range is left out; everything else that produced no alert is recorded. The log starts fresh on every launch.

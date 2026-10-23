@@ -62,6 +62,13 @@ arrive. Packaged as a standard Windows installer.
   **Export Logs** button copies it and the unverified-pilot log to your
   Documents.
 
+## On hold
+
+**Fuzzy ship-name matching** — resolving hull misspellings that aren't in the
+built-in shorthand — was explored but is on hold for now. It needs to clear a
+measured accuracy bar before it ships, so the app keeps its existing shorthand
+and alias handling unchanged.
+
 ## Changelog
 
 ### 1.2.9
@@ -76,6 +83,10 @@ The alerts pop-out is tidier too: it now opens **solid** rather than see-through
 (the **Transparent** checkbox is still there if you want the floating look), is
 half as tall at 320px, and its title and checkboxes no longer sit inside the
 window's edge.
+
+Fuzzy ship-name matching was explored for this release but is **on hold** — it
+needs to clear a measured accuracy bar before it ships, so the existing
+shorthand and alias handling is unchanged.
 
 ### 1.2.8
 Map view and see-through alerts. The Intel Map now opens as a 2D star map
