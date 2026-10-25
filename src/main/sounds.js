@@ -106,9 +106,14 @@ class SoundPlayer {
     const vol = ((slider / 100) * MASTER_GAIN).toFixed(2);
 
     try {
-      const cmd = `powershell.exe -NoProfile -WindowStyle Hidden -Command "${this.mediaPlayerCmd(file, vol)}"`;
+      let cmd;
+      if (type === 'red') {
+        cmd = `powershell.exe -NoProfile -WindowStyle Hidden -Command "Add-Type -AssemblyName PresentationCore; [System.Media.SystemSounds]::Beep.Play();"`;
+      } else {
+        cmd = `powershell.exe -NoProfile -WindowStyle Hidden -Command "${this.mediaPlayerCmd(file, vol)}"`;
+      }
       exec(cmd, { windowsHide: true }, (error) => {
-        if (error) {
+        if (error && type !== 'red') {
           this.log.warn(`MediaPlayer failed (${error.message}); falling back to SoundPlayer`);
           const fb = `powershell.exe -NoProfile -WindowStyle Hidden -Command "${this.fallbackCmd(file)}"`;
           exec(fb, { windowsHide: true }, () => {});

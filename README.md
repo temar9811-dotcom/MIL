@@ -1,4 +1,4 @@
-# MRCHI Intel Lite — v1.3.0
+# MRCHI Intel Lite — v1.3.5
 
 ...
 
@@ -53,6 +53,10 @@ arrive. Packaged as a standard Windows installer.
   Requires Python 3.9+ and the packages listed in
   `resources/local-monitor/python/requirements.txt`.
 - **Separate volumes and your own custom sounds** for red and soft alerts.
+- **Test alarm and snapshot buttons dev mode only** — Local Monitor test alarm and snapshot buttons are disabled in production builds, available only when `NODE_ENV` is `'development'`
+- **Check interval and template size side by side** — These two settings now appear horizontally aligned with a gap, saving vertical space in the Local Monitor panel
+- **Detection threshold label updated** — Changed from "Detection threshold" to "Icon match detection threshold (recommended 60)"
+- **Generated warning alarm sound** — Red alerts now use a system beep tone instead of a WAV file, providing a generated warning alarm sound
 - **Remembers your last 50 alerts** across restarts, with a Clear button.
 - **Bigger text mode** for tired eyes.
 - **No spam**: the same report from three people is one ping, not three.

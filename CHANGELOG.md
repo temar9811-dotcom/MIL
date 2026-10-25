@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.5
+
+### Features
+
+- **Test alarm and snapshot buttons dev mode only** — Local Monitor test alarm and snapshot buttons are disabled in production builds, available only when `NODE_ENV` is `'development'`
+- **Check interval and template size side by side** — These two settings now appear horizontally aligned with a gap, saving vertical space in the Local Monitor panel
+- **Detection threshold label updated** — Changed from "Detection threshold" to "Icon match detection threshold (recommended 60)"
+- **Generated warning alarm sound** — Red alerts now use a system beep tone instead of a WAV file, providing a generated warning alarm sound
+
 ## 1.3.4
 
 ### Fixes
