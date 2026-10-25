@@ -345,7 +345,7 @@ function init() {
     if (!els.start) return;
     if (els.start) els.start.addEventListener('click', toggleStart);
     if (els.test) {
-        els.test.addEventListener('click', testAlarm);
+        els.test.style.display = 'none';
     }
     if (els.save) els.save.addEventListener('click', function () { saveSettings(); });
     if (els.threshold) {
@@ -358,10 +358,10 @@ function init() {
     if (els.areas[0].preview) els.areas[0].preview.addEventListener('click', function () { previewArea(1); });
     if (els.areas[1].preview) els.areas[1].preview.addEventListener('click', function () { previewArea(2); });
     if (els.areas[0].snapshot) {
-        els.areas[0].snapshot.addEventListener('click', function () { snapshotArea(1); });
+        els.areas[0].snapshot.style.display = 'none';
     }
     if (els.areas[1].snapshot) {
-        els.areas[1].snapshot.addEventListener('click', function () { snapshotArea(2); });
+        els.areas[1].snapshot.style.display = 'none';
     }
     if (window.electronAPI && window.electronAPI.onLocalMonitorStatus) {
         window.electronAPI.onLocalMonitorStatus(renderStatus);
