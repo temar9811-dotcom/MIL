@@ -67,7 +67,10 @@ const MIN_SCALED_SIDE = 4;
 // assumed and a warning is logged, since every derived size depends on it.
 function masterScaleOf(fileName) {
   const base = path.basename(fileName, path.extname(fileName));
-  const m = base.match(/_(\d{2,3})$/);
+  let m = base.match(/_(\d{2,3})%?$/);
+  if (!m) {
+    m = base.match(/_(\d{2,3})$/);
+  }
   if (!m) return { scale: DEFAULT_MASTER_SCALE, declared: false };
   const scale = Number(m[1]);
   return { scale: scale > 0 ? scale : DEFAULT_MASTER_SCALE, declared: true };
@@ -183,21 +186,16 @@ class LocalMonitor {
         + 'Rename it e.g. image_hostile-red_150.png so the derived sizes are right',
       );
     }
-    const seen = new Set();
-    const targets = this.templateScale === 'all' ? UI_SCALES : [Number(this.templateScale)];
+    const targets = this.templateScale === 'all' ? [90, 100] : [Number(this.templateScale)];
     for (const target of targets) {
-      const ratio = target / master;
-      const w = Math.round(planes.width * ratio);
-      const h = Math.round(planes.height * ratio);
+      if (target !== master) continue;
+      const w = planes.width;
+      const h = planes.height;
       if (w < MIN_SCALED_SIDE || h < MIN_SCALED_SIDE) continue;
-      const key = `${w}x${h}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const scaled = ratio === 1 ? planes : resampleChannels(planes, w, h);
-      out.push(new Template(`${entry}@${target}%`, scaled));
+      out.push(new Template(`${entry}@${target}%`, planes));
     }
     if (!out.length) {
-      this.log.warn(`[LocalMonitor] "${entry}" is too small to scale (${planes.width}x${planes.height})`);
+      this.log.warn(`[LocalMonitor] "${entry}" scale ${master}% not used for templateScale=${this.templateScale}`);
     }
     return out;
   }
