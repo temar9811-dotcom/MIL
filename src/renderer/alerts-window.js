@@ -36,6 +36,14 @@ if (closeBtn) {
   closeBtn.addEventListener('click', () => window.close());
 }
 
+function applyBigText(on) {
+  if (on) {
+    document.body.classList.add('big-text');
+  } else {
+    document.body.classList.remove('big-text');
+  }
+}
+
 async function init() {
   if (!window.electronAPI) return;
   try {
@@ -45,6 +53,9 @@ async function init() {
       const on = state.config.alertsTransparent === true;
       transparentCheckbox.checked = on;
       applyTransparency(on);
+    }
+    if (state && state.config) {
+      applyBigText(state.config.bigText === true);
     }
     if (state && Array.isArray(state.recents) && typeof window.renderAlertHistory === 'function') {
       window.renderAlertHistory(state.recents);
