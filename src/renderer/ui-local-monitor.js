@@ -345,7 +345,6 @@ function init() {
     if (!els.start) return;
     if (els.start) els.start.addEventListener('click', toggleStart);
     if (els.test) {
-        els.test.disabled = process.env.NODE_ENV !== 'development';
         els.test.addEventListener('click', testAlarm);
     }
     if (els.save) els.save.addEventListener('click', function () { saveSettings(); });
@@ -359,11 +358,9 @@ function init() {
     if (els.areas[0].preview) els.areas[0].preview.addEventListener('click', function () { previewArea(1); });
     if (els.areas[1].preview) els.areas[1].preview.addEventListener('click', function () { previewArea(2); });
     if (els.areas[0].snapshot) {
-        els.areas[0].snapshot.disabled = process.env.NODE_ENV !== 'development';
         els.areas[0].snapshot.addEventListener('click', function () { snapshotArea(1); });
     }
     if (els.areas[1].snapshot) {
-        els.areas[1].snapshot.disabled = process.env.NODE_ENV !== 'development';
         els.areas[1].snapshot.addEventListener('click', function () { snapshotArea(2); });
     }
     if (window.electronAPI && window.electronAPI.onLocalMonitorStatus) {
