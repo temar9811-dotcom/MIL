@@ -267,7 +267,7 @@ class LocalMonitor {
     if ('localMute' in settings) this.muted = !!settings.localMute;
     if ('localTemplateScale' in settings) {
       const value = String(settings.localTemplateScale);
-      this.templateScale = value === 'all' || UI_SCALES.includes(Number(value)) ? value : '100';
+      this.templateScale = value === '90' || value === '100' ? value : '100';
     }
     if ('localCheckRate' in settings) {
       this.setCheckRate(settings.localCheckRate);

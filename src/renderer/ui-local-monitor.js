@@ -334,7 +334,7 @@ window.loadLocalMonitorSettings = function (settings) {
     }
     if (els.mute) els.mute.checked = !!settings.localMute;
     if (els.checkRate) els.checkRate.value = String(clampCheckRate(settings.localCheckRate));
-    if (els.templateScale) els.templateScale.value = ['auto','90','100','110','125','150','175','200','all'].indexOf(String(settings.localTemplateScale)) >= 0 ? String(settings.localTemplateScale) : 'auto';
+    if (els.templateScale) els.templateScale.value = ['90','100'].indexOf(String(settings.localTemplateScale)) >= 0 ? String(settings.localTemplateScale) : '100';
     refreshStatus();
     startPoll();
     log('INFO', 'Local Monitor settings loaded.');
