@@ -23,7 +23,9 @@ class PythonDetector {
   async start(templatesDir, threshold = 0.6, scale = 'all') {
     if (this.proc && this.ready && this.templatesLoaded) return;
     this.threshold = threshold;
-    this.scale = scale;
+    // "auto" asks the detector to calibrate once and then match a single
+    // scale; the detector only knows how to do that when it is handed "all".
+    this.scale = scale === 'auto' ? 'all' : scale;
     this.templateData = await this.loadTemplateData(templatesDir);
 
     const packagedDetectors = [

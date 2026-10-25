@@ -66,8 +66,8 @@ const SETTINGS_DEFAULTS = {
   localMonitorEnabled: false,
   // Exclusive check-rate multiplier for the local monitor. 1 is the shipped
   // cadence; 2/5/8/10 scale both the vision pass and the alarm check pass.
-  localCheckRate: 1,
-  localTemplateScale: '100',
+localCheckRate: 1,
+  localTemplateScale: 'auto',
   localThreshold: 60,
   localCooldown: 60,
   localMute: false,

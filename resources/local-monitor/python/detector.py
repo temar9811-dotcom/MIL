@@ -8,6 +8,7 @@ Communicates via JSON lines on stdin/stdout.
 import sys
 import json
 import base64
+import time
 
 import numpy as np
 import cv2
@@ -35,10 +36,19 @@ class Detector:
         self.templates = []
         self.threshold = 0.6
         self.sct = None
+        # When the app asks for "auto", no single scale fits every machine:
+        # the same 200%-captured master is 12x7 at 90% and 26x15 at 200%,
+        # and the right one is whatever the EVE client is actually rendering at.
+        # Auto measures which one keeps the same contact in the same place
+        # across two captures and uses it from then on.
+        self.auto_scale = None
 
     def load_templates(self, templates_data, threshold, target_scale):
         self.templates = []
+        self.templates_by_scale = {}
         self.threshold = threshold
+        self.target_scale = target_scale
+        self.auto_scale = None
         for t in templates_data:
             img_bytes = base64.b64decode(t['data'])
             nparr = np.frombuffer(img_bytes, np.uint8)
@@ -55,14 +65,23 @@ class Detector:
                     scaled = img if sw == w and sh == h else cv2.resize(
                         img, (sw, sh), interpolation=cv2.INTER_AREA if ratio < 1 else cv2.INTER_LINEAR
                     )
-                    self.templates.append(Template(f"{t['name']}@{scale}%", scaled, sw, sh))
+                    tpl = Template(f"{t['name']}@{scale}%", scaled, sw, sh)
+                    self.templates.append(tpl)
+                    self.templates_by_scale.setdefault(scale, []).append(tpl)
         return {"status": "ok", "templates_loaded": len(self.templates)}
 
-    def detect(self, region):
+    def capture(self, region):
+        """Grab the region in logical display pixels.
+
+        mss hands back physical pixels, so the capture is scaled down to the
+        logical size the app asked for. Every template and every preview and
+        snapshot lives in that same space, and leaving the detector on the
+        physical frame made it see a 1.25x image that no scale variant matched
+        while the preview still reported hits - the two paths were looking at
+        different pixels.
+        """
         if self.sct is None:
             self.sct = mss.MSS()
-        # Electron reports logical display coordinates. Map them to the
-        # corresponding physical MSS monitor so DPI scaling is respected.
         displays = region.get('displays') or []
         display_index = max(0, min(int(region.get('displayIndex', 0)), len(displays) - 1)) if displays else 0
         display = displays[display_index] if displays else {
@@ -76,11 +95,17 @@ class Detector:
         width = int(round(region['width'] * scale))
         height = int(round(region['height'] * scale))
         monitor = {"top": top, "left": left, "width": width, "height": height}
+        screenshot = self.sct.grab(monitor)
+        img = np.array(screenshot)
+        img = img[:, :, :3]  # Drop alpha
+        if width and height and (img.shape[1] != width or img.shape[0] != height):
+            img = cv2.resize(img, (width, height), interpolation=cv2.INTER_AREA)
+        return img
+
+    def detect(self, region):
+        self.last_region = region
         try:
-            screenshot = self.sct.grab(monitor)
-            # Convert to numpy array (BGRA -> BGR)
-            img = np.array(screenshot)
-            img = img[:, :, :3]  # Drop alpha
+            img = self.capture(region)
         except Exception as e:
             return {"status": "error", "message": f"Capture failed: {e}"}
 
@@ -89,17 +114,78 @@ class Detector:
         frame_mean = float(frame_mean[0][0])
         frame_stddev = float(frame_stddev[0][0])
 
+        # "auto" calibrates once: a wrong scale scatters noise, the right one
+        # keeps the same contact in the same place between captures. The first
+        # two captures score every scale and remember the winner; after that
+        # only that scale is matched, so the calibration cost is paid once.
+        if self.target_scale == 'all' and self.auto_scale is None:
+            self.auto_scale = self.calibrate(img)
+        if self.auto_scale is not None:
+            active = self.templates_by_scale.get(self.auto_scale, [])
+        else:
+            active = self.templates
+
+        matches = self.match_image(img, active)
+
+        # Sort by score descending
+        matches.sort(key=lambda m: m['score'], reverse=True)
+        return {
+            "status": "ok",
+            "matches": matches,
+            "frame_mean": frame_mean,
+            "frame_stddev": frame_stddev,
+        }
+
+    def calibrate(self, img):
+        """Pick the interface scale whose hits are stable between captures.
+
+        Every scale variant is scored against this frame and the next one. The
+        winner is the scale that moves the least between them: real contacts
+        stay put, while a wrong scale is just noise scattered across the
+        correlation map, so its hits land in different places each time.
+        """
+        scores = {}
+        for scale, templates in self.templates_by_scale.items():
+            hits = []
+            for t in self.match_image(img, templates):
+                hits.append((t['x'], t['y']))
+            scores[scale] = hits
+        if not scores:
+            return None
+        # A second capture settles the noise question.
+        time.sleep(0.15)
+        try:
+            next_img = self.capture(region=self.last_region) if getattr(self, 'last_region', None) else None
+        except Exception:
+            next_img = None
+        if next_img is None:
+            return max(scores, key=lambda s: len(scores[s]))
+        stable = {}
+        for scale, hits in scores.items():
+            nxt = [(t['x'], t['y']) for t in self.match_image(next_img, self.templates_by_scale.get(scale, []))]
+            keep = 0
+            for x, y in hits:
+                if any(abs(x - nx) <= 3 and abs(y - ny) <= 3 for nx, ny in nxt):
+                    keep += 1
+            stable[scale] = keep
+        winner = max(stable, key=lambda s: (stable[s], len(scores[s])))
+        return winner
+
+    def match_image(self, img, templates=None):
+        """Slide every template across the image and group the hits.
+
+        OpenCV 5 removed cv2.groupRectangles, so the old call lived inside a
+        broad except and that version silently dropped every valid template hit
+        - Local Monitor never alarmed even though the preview showed matches.
+        Connected components over the threshold map do the same grouping, and
+        the strongest score is kept per component.
+        """
         matches = []
-        for tpl in self.templates:
+        for tpl in (templates if templates is not None else self.templates):
             if tpl.width > img.shape[1] or tpl.height > img.shape[0]:
                 continue
             try:
                 result = cv2.matchTemplate(img, tpl.img, cv2.TM_CCOEFF_NORMED)
-                # OpenCV 5 removed cv2.groupRectangles. The old call was
-                # inside a broad except, so that version silently dropped every
-                # valid template hit and Local Monitor never alarmed. Connected
-                # components over the threshold map group adjacent candidate
-                # positions; retain the strongest score in each component.
                 threshold_map = (result >= self.threshold).astype(np.uint8)
                 count, labels, _, _ = cv2.connectedComponentsWithStats(
                     threshold_map, connectivity=8
@@ -108,12 +194,15 @@ class Detector:
                     flat_labels = labels.reshape(-1)
                     flat_scores = result.reshape(-1)
                     best_scores = np.full(count, -np.inf, dtype=np.float32)
-                    best_indexes = np.full(count, -1, dtype=np.int64)
+                    best_indexes = np.full(count, flat_scores.size, dtype=np.int64)
                     valid = flat_labels > 0
                     np.maximum.at(best_scores, flat_labels[valid], flat_scores[valid])
                     candidate_indexes = np.flatnonzero(
                         valid & (flat_scores == best_scores[flat_labels])
                     )
+                    # Keep the first (smallest) candidate index in each
+                    # component. minimum.at needs a large sentinel, not -1:
+                    # min(-1, index) is -1, which silently dropped every hit.
                     np.minimum.at(
                         best_indexes,
                         flat_labels[candidate_indexes],
@@ -121,7 +210,7 @@ class Detector:
                     )
                     for label in range(1, count):
                         index = int(best_indexes[label])
-                        if index < 0:
+                        if index >= flat_scores.size:
                             continue
                         y, x = divmod(index, result.shape[1])
                         matches.append({
@@ -137,15 +226,7 @@ class Detector:
                     "status": "error",
                     "message": f"Template match failed for {tpl.name}: {e}"
                 }
-
-        # Sort by score descending
-        matches.sort(key=lambda m: m['score'], reverse=True)
-        return {
-            "status": "ok",
-            "matches": matches,
-            "frame_mean": frame_mean,
-            "frame_stddev": frame_stddev,
-        }
+        return matches
 
 def main():
     detector = Detector()
